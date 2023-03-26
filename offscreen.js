@@ -20,7 +20,7 @@ chrome.runtime.onMessage.addListener(message => {
 
     if (message.type in actions) {
         return actions[message.type](message.data)
+    } else {
+        console.warn(`Unexpected message type received: '${message.type}'.`)
     }
-
-    console.warn(`Unexpected message type received: '${message.type}'.`)
 })
