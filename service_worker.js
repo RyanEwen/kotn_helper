@@ -1,9 +1,12 @@
-import moment from '/lib/moment.js';
-
 console.log('KotN Helper - Service Worker')
 
+import moment from '/lib/moment.js';
+
 const listingsUrl = 'https://kotnauction.com/listings'
+
 const watchedListingsUrl = 'https://kotnauction.com/listings/watched'
+
+let watchedListings = {}
 
 async function showWatchedListings() {
     const tabs = await chrome.tabs.query({ url: `${watchedListingsUrl}*` })
@@ -51,8 +54,8 @@ async function playSound(sound) {
     await setupOffscreenDoc()
 
     await chrome.runtime.sendMessage({
-        target: 'offscreen',
-        type: 'play-sound',
+        target: 'OFFSCREEN',
+        type: 'PLAY_SOUND',
         data: sound
     })
 }
@@ -61,8 +64,8 @@ async function showAlert(message) {
     await setupOffscreenDoc()
 
     await chrome.runtime.sendMessage({
-        target: 'offscreen',
-        type: 'show-alert',
+        target: 'OFFSCREEN',
+        type: 'SHOW_ALERT',
         data: message
     })
 }
@@ -92,6 +95,23 @@ async function hasOffscreenDocument(path) {
     return false
 }
 
+async function notifyOutbid(listingId, previousBid, currentBid, nextBid) {
+    await playSound('beeps')
+
+    return showNotification(`OUTBID.${listingId}.${nextBid}`, "You've been outbid!", `Previous bid $${previousBid}, Current bid: $${currentBid}`, [
+        { title: 'Unwatch' },
+        { title: `Bid $${nextBid}` },
+    ])
+}
+
+async function notifyItemWon() {
+    await playSound('yay')
+
+    return showNotification(`ITEM_WON.${listing_id}`, 'Item Won', "You've won an item!", [
+        { title: 'View listing' },
+    ])
+}
+
 async function readCookie(name) {
     const cookie = await chrome.cookies.get({ name, url: 'https://kotnauction.com' })
 
@@ -115,140 +135,126 @@ async function makeApiCall(url, method = 'GET', data) {
     return request.json()
 }
 
-const api = {
+const ApiCalls = {
     bid: (id, bid) => makeApiCall(`https://kotnauction.com/listings/${id}/bid`, 'POST', { bid }),
     watch: (id) => makeApiCall(`https://kotnauction.com/listings/${id}/watch`, 'POST'),
     ignore: (id) => makeApiCall(`https://kotnauction.com/listings/${id}/ignore`, 'POST'),
     refresh: (ids) => makeApiCall('https://kotnauction.com/listings/refresh', 'POST', { ids }),
 }
 
-async function notifyOutbid(listingId, previousBid, currentBid, nextBid) {
-    await playSound('beeps')
-
-    return showNotification(`outbid.${listingId}.${nextBid}`, "You've been outbid!", `Previous bid $${previousBid}, Current bid: $${currentBid}`, [
-        { title: 'Unwatch' },
-        { title: `Bid $${nextBid}` },
-    ])
-}
-
-async function notifyItemWon() {
-    await playSound('yay')
-
-    return showNotification(`itemWon.${listing_id}`, 'Item Won', "You've won an item!", [
-        { title: 'View listing' },
-    ])
-}
-
-// handle messages from popup
-const popupHandlers = {
-    'showWatchedListings': (args) => {
+const PopupHandlers = {
+    SHOW_WATCHED_LISTINGS: () => {
         showWatchedListings()
     },
+
+    TEST_NOTIFICATION: () => {
+        notifyOutbid(111111, 5, 10, 15)
+    },
 }
 
-// handle messages from websockets
-const websocketHandlers = {
-    'BidPlaced': async (args) => {
-        // {
-        //     "id": 13841801,
-        //     "listing_id": 974702,
-        //     "bid": 3,
-        //     "bidder": "yourguymike",
-        //     "created_at": "2023-03-21 12:30:59",
-        //     "listing_end": "2023-03-26 16:00:00",
-        //     "socket": null
-        // }
+const WebsocketHandlers = {
+    PAGE_LOAD: async (args) => {
+        watchedListings = args.listingData
     },
-    'WatchStateChanged': async (args) => {
-        // {
-        //     "listing_id": 974742,
-        //     "state": "ignore",
-        //     "socket": null
-        // }
 
+    BID_PLACED: async (args) => {
+        // eg: { "id": 13841801, "listing_id": 974702, "bid": 3, "bidder": "yourguymike", "created_at": "2023-03-21 12:30:59", "listing_end": "2023-03-26 16:00:00" }
+
+        watchedListings = args.listingData
+    },
+
+    WATCH_STATE_CHANGED: async (args) => {
+        // eg: { "listing_id": 974742, "state": "ignore" }
         // known states: "bid", "watch", "ignore", null
 
-        // const detail = await api.refresh([974702])
-        // notifyOutbid(974702, 8, 9, detail[974702].bid + detail[974702].bid_increment)
+        watchedListings = args.listingData
     },
-    'BidderOutbid': async (args) => {
-        // Note: happens before BidPlaced
 
-        // {
-        //     "user_id": 17965,
-        //     "listing_id": 974702,
-        //     "previous_bid": 2,
-        //     "current_bid": 3,
-        //     "socket": null
-        // }
+    OUTBID: async (args) => {
+        // eg: { "user_id": 17965, "listing_id": 974702, "previous_bid": 2, "current_bid": 3 }
 
-        const outbidKey = 'options.notifications.outbid'
-        const storedData = await chrome.storage.sync.get(outbidKey)
-        const notificationSetting = storedData[outbidKey]
+        watchedListings = args.listingData
 
-        if (notificationSetting == 'disabled') {
-            return
-        }
-
-        const detail = await api.refresh([args.listing_id])
-
-        if (!notificationSetting || notificationSetting == 'last2minutes') {
-            const endTime = moment(detail[args.listing_id].end)
-            const twoMinsFromEndTime = moment(endTime).subtract(2, 'minutes')
-
-            // check if auction is ending
-            if (moment().isBetween(twoMinsFromEndTime, endTime) == false) {
+        const actions = {
+            'disabled': () => {
                 return
-            }
+            },
+            'always': () => {
+                notifyOutbid(args.listing_id, args.previous_bid, args.current_bid, detail[args.listing_id].bid + detail[args.listing_id].bid_increment)
+            },
+            'last2minutes': () => {
+                const endTime = moment(detail[args.listing_id].end)
+                const twoMinsFromEndTime = moment(endTime).subtract(2, 'minutes')
+
+                // check if auction is ending
+                if (moment().isBetween(twoMinsFromEndTime, endTime) == false) {
+                    notifyOutbid(args.listing_id, args.previous_bid, args.current_bid, detail[args.listing_id].bid + detail[args.listing_id].bid_increment)
+                }
+            },
         }
 
-        if (notificationSetting == 'always') {
-            // pass
-        }
-
-        notifyOutbid(args.listing_id, args.previous_bid, args.current_bid, detail[args.listing_id].bid + detail[args.listing_id].bid_increment)
-    },
-    'ItemWon': async (args) => {
         const outbidKey = 'options.notifications.outbid'
         const storedData = await chrome.storage.sync.get(outbidKey)
-        const notificationSetting = storedData[outbidKey]
+        const setting = storedData[outbidKey] || 'last2minutes'
 
-        switch(notificationSetting) {
-            case 'disabled':
-                // pass
-            break
+        // execute the action based on the setting
+        if (setting in actions) {
+            actions[setting]()
+        }
+    },
 
-            case 'always':
-            default:
+    ITEM_WON: async (args) => {
+        watchedListings = args.listingData
+
+        const actions = {
+            'disabled': () => {
+                return
+            },
+            'always': () => {
                 notifyItemWon(args)
-            break
+            },
+        }
+
+        const outbidKey = 'options.notifications.outbid'
+        const storedData = await chrome.storage.sync.get(outbidKey)
+        const setting = storedData[outbidKey] || 'always'
+
+        // execute the action based on the setting
+        if (setting in actions) {
+            actions[setting]()
         }
     },
 }
 
-const notificationHandlers = {
-    outbid: (index, [ listingid, nextBid ]) => {
-        switch (index) {
-            // view
+const NotificationHandlers = {
+    INSTALLED: () => {
+        showWatchedListings()
+    },
+
+    OUTBID: (buttonIndex, [ listingid, nextBid ]) => {
+        switch (buttonIndex) {
+            // no button
             case -1:
                 showListing(listingid)
             break
 
-            // unwatch
+            // unwatch button
             case 0:
-                api.ignore(listingid)
+                ApiCalls.ignore(listingid)
             break
 
-            // bid
+            // bid button
             case 1:
-                api.bid(listingid, nextBid)
+                ApiCalls.bid(listingid, nextBid)
             break
         }
     },
-    itemWon: (index, [ listing_id, ...others ]) => {
-        switch (index) {
-            // view
+
+    ITEM_WON: (buttonIndex, [ listing_id, ...others ]) => {
+        switch (buttonIndex) {
+            // no button
             case -1:
+            // view button
             case 0:
                 showListing(listing_id)
             break
@@ -261,42 +267,48 @@ chrome.runtime.onInstalled.addListener(async ({ reason, version }) => {
     if (reason === chrome.runtime.OnInstalledReason.INSTALL) {
         await playSound('yay')
 
-        showNotification('installed', 'Extension installed', 'Yay!')
+        showNotification('INSTALLED', 'Extension installed', 'Yay!')
     }
 })
 
 // message handler
-chrome.runtime.onMessage.addListener(message => {
-    if (message.target !== 'ServiceWorker') {
+chrome.runtime.onMessage.addListener((message) => {
+    if (message.target !== 'SERVICE_WORKER') {
         return
     }
 
     console.log('KotNHelper service worker received', message)
 
-    if (message.type == 'PopupMessage' && message.data.action in popupHandlers) {
-        return popupHandlers[message.data.action](message.data.args)
+    if (message.type == 'POPUP_MESSAGE' && message.data.action in PopupHandlers) {
+        return PopupHandlers[message.data.action](message.data.args)
     }
 
     // TODO only listen for events from the one tab at a time
-    if (message.type == 'WebsocketMessage' && message.data.type in websocketHandlers) {
-        return websocketHandlers[message.data.type](message.data.args)
+    if (message.type == 'WEBSOCKET_MESSAGE' && message.data.type in WebsocketHandlers) {
+        return WebsocketHandlers[message.data.type](message.data.args)
     }
 
     console.warn(`Unexpected message type received: '${message.type}'.`)
 })
 
-chrome.notifications.onClicked.addListener(id => {
+// notification click handler
+chrome.notifications.onClicked.addListener((id) => {
     const [ type, ...details ] = id.split('.')
 
-    if (type in notificationHandlers) {
-        notificationHandlers[type](-1, details)
+    if (type in NotificationHandlers) {
+        NotificationHandlers[type](-1, details)
+    } else {
+        console.warn(`Unexpected message type received: '${type}'.`)
     }
 })
 
+// notification button click handler
 chrome.notifications.onButtonClicked.addListener((id, index) => {
     const [ type, ...details ] = id.split('.')
 
-    if (type in notificationHandlers) {
-        notificationHandlers[type](index, details)
+    if (type in NotificationHandlers) {
+        NotificationHandlers[type](index, details)
+    } else {
+        console.warn(`Unexpected message type received: '${type}'.`)
     }
 })

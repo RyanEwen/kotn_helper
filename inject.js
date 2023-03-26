@@ -1,31 +1,31 @@
 (function() {
-    function forward(type, args, globals) {
-        window.postMessage({ from: 'KotNHelper', type, args, globals })
+    function forward(type, args) {
+        window.postMessage({ from: 'KOTN_HELPER', type, args })
     }
 
-    function listenAndForward(public, events) {
-        const socket = public ? window.Echo.channel('public') : window.Echo.private(`user.${authUserId}`)
+    forward('PAGE_LOAD', { listingData })
 
-        events.forEach(event => {
-            socket.listen(event, args => {
-                forward(event, args, { listingData })
-            })
-        })
-    }
+    window.Echo.channel('public').listen('BidPlaced', message => {
+        forward('BID_PLACED', { ...message, listingData })
+    })
 
-    // public events
-    listenAndForward(true, [
-        // 'AuctionStarted',
-        // 'AuctionEnded',
-        // 'BidPlaced',
-    ])
+    window.Echo.private(`user.${authUserId}`).listen('WatchStateChanged', message => {
+        forward('WATCH_STATE_CHANGED', { ...message, listingData })
+    })
 
-    // private events
-    listenAndForward(false, [
-        'WatchStateChanged',
-        'BidderOutbid',
-        'ItemWon',
-        // 'MessageSentToMember',
-        // 'UnreadMessageCountChanged',
-    ])
+    window.Echo.private(`user.${authUserId}`).listen('BidderOutbid', message => {
+        forward('OUTBID', { ...message, listingData })
+    })
+
+    window.Echo.private(`user.${authUserId}`).listen('ItemWon', message => {
+        forward('ITEM_WON', { ...message, listingData })
+    })
+
+    // window.Echo.private(`user.${authUserId}`).listen('MessageSentToMember', message => {
+    //     forward('MESSAGE_SENT_TO_MEMBER', message)
+    // })
+
+    // window.Echo.private(`user.${authUserId}`).listen('UnreadMessageCountChanged', message => {
+    //     forward('UNREAD_MESSAGE_COUNT_CHANGED', message)
+    // })
 }())

@@ -17,14 +17,24 @@ document.addEventListener('input', async event => {
     })
 })
 
-// listen for link click
+// listen for watched listings link click
 document.querySelector('#watched_listings_link').addEventListener('click', () => {
     chrome.runtime.sendMessage({
-        target: 'ServiceWorker',
-        type: 'PopupMessage',
+        target: 'SERVICE_WORKER',
+        type: 'POPUP_MESSAGE',
         data: {
-            action: 'showWatchedListings',
-            args: {},
+            action: 'SHOW_WATCHED_LISTINGS',
+        },
+    })
+})
+
+// listen for test notification link click
+document.querySelector('#send_test_notification').addEventListener('click', () => {
+    chrome.runtime.sendMessage({
+        target: 'SERVICE_WORKER',
+        type: 'POPUP_MESSAGE',
+        data: {
+            action: 'TEST_NOTIFICATION',
         },
     })
 })

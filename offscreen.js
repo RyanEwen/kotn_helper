@@ -3,21 +3,24 @@ const sounds = {
     yay: new Audio(chrome.runtime.getURL('audio/yay.mp3')),
 }
 
+const actions = {
+    PLAY_SOUND: (sound) => {
+        sounds[sound].play()
+    },
+
+    SHOW_ALERT: (text) => {
+        alert(text)
+    },
+}
+
 chrome.runtime.onMessage.addListener(message => {
-    if (message.target !== 'offscreen') {
+    if (message.target !== 'OFFSCREEN') {
         return
     }
 
-    switch (message.type) {
-        case 'play-sound':
-            sounds[message.data].play()
-        break;
-
-        case 'show-alert':
-            alert(message.data)
-        break;
-
-        default:
-            console.warn(`Unexpected message type received: '${message.type}'.`)
+    if (message.type in actions) {
+        return actions[message.type](message.data)
     }
+
+    console.warn(`Unexpected message type received: '${message.type}'.`)
 })
