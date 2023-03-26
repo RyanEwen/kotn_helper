@@ -8,10 +8,14 @@
     Object.keys(listingData).forEach((listingId) => {
         const listingEl = document.querySelector(`.listings-grid *[data-id="${listingId}"] .listing-tile-title-link`)
 
-        watchedListings[listingId] = { ...listingData, name: listingEl.innerText }
+        // add name property
+        watchedListings[listingId] = {
+            ...listingData[listingId],
+            name: listingEl.innerText,
+        }
     })
 
-    forward('PAGE_LOAD', { watchedListings })
+    forward('PAGE_LOAD', { userId, username, watchedListings })
 
     window.Echo.channel('public').listen('BidPlaced', message => {
         forward('BID_PLACED', { ...message, listingData })
