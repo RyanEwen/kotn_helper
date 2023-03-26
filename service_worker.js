@@ -6,6 +6,10 @@ const listingsUrl = 'https://kotnauction.com/listings'
 
 const watchedListingsUrl = 'https://kotnauction.com/listings/watched'
 
+let userId
+
+let username
+
 let watchedListings = {}
 
 async function openWatchedListings() {
@@ -101,6 +105,54 @@ async function hasOffscreenDocument(path) {
     }
 
     return false
+}
+
+async function notifyEndingSoonButWinning(mediums, listingId, currentBid) {
+    const listingName = watchedListings[listingId].name || ''
+
+    if (mediums.sound) {
+        await playSound('beeps')
+    }
+
+    if (mediums.notification) {
+        createNotification(`ENDING_WINNING.${listingId}`, "Listing ending soon!", `$${currentBid} (you) - ${listingName}`, [
+            { title: 'View Listing' },
+        ])
+    }
+
+    if (mediums.ifttt) {
+        makeIftttWebhookCall('kotn_ending_winning', {
+            text: "Listing ending soon!",
+            listingUrl: `${listingsUrl}/${listingId}`,
+            listingName,
+            currentBid,
+        })
+    }
+}
+
+async function notifyEndingSoonAndLosing(mediums, listingId, currentBid, nextBid) {
+    const listingName = watchedListings[listingId].name || ''
+
+    if (mediums.sound) {
+        await playSound('beeps')
+    }
+
+    if (mediums.notification) {
+        createNotification(`ENDING_LOSING.${listingId}.${nextBid}`, "Listing ending soon!", `$${currentBid} - ${listingName}`, [
+            { title: 'Unwatch' },
+            { title: `Bid $${nextBid}` },
+        ])
+    }
+
+    if (mediums.ifttt) {
+        makeIftttWebhookCall('kotn_ending_losing', {
+            text: "Listing ending soon!",
+            listingUrl: `${listingsUrl}/${listingId}`,
+            listingName,
+            currentBid,
+            nextBid,
+        })
+    }
 }
 
 async function notifyOutbid(mediums, listingId, previousBid, currentBid, nextBid) {
@@ -217,7 +269,95 @@ const PopupHandlers = {
 
 const ContentScriptHandlers = {
     PAGE_LOAD: async (args) => {
-        watchedListings = { '111111': { name: "TEST ITEM NAME" }, ...args.watchedListings }
+        userId = args.userId
+
+        username = args.username
+
+        for (let listingId in watchedListings) {
+            if (listingId == '111111') {
+                continue
+            }
+
+            clearTimeout(watchedListings[listingId].timeout)
+        }
+
+        watchedListings = {
+            '111111': { name: "TEST ITEM NAME" },
+            ...args.watchedListings
+        }
+
+        for (let listingId in watchedListings) {
+            if (listingId == '111111') {
+                continue
+            }
+
+            const msFromNow = moment(watchedListings[listingId].end).subtract(2, 'minutes').subtract(5, 'seconds').diff()
+
+            watchedListings[listingId].timeout = setTimeout(async () => {
+                const notificationActions = {
+                    'disabled': async () => {
+                        return
+                    },
+                    'always': async () => {
+                        const detail = await ApiCalls.refresh([listingId])
+
+                        if (detail[listingId].bidder == username) {
+                            notifyEndingSoonButWinning({ sound: true, notification: true}, listingId, detail[listingId].bid)
+                        } else {
+                            notifyEndingSoonAndLosing({ sound: true, notification: true}, listingId, detail[listingId].bid, detail[listingId].bid + detail[listingId].bid_increment)
+                        }
+                    },
+                    'unlessWinning': async () => {
+                        const detail = await ApiCalls.refresh([listingId])
+
+                        if (detail[listingId].bidder == username) {
+                            return
+                        }
+
+                        notifyEndingSoonAndLosing({ sound: true, notification: true}, listingId, detail[listingId].bid, detail[listingId].bid + detail[listingId].bid_increment)
+                    },
+                }
+
+                const iftttActions = {
+                    'disabled': async () => {
+                        return
+                    },
+                    'always': async () => {
+                        const detail = await ApiCalls.refresh([listingId])
+
+                        if (detail[listingId].bidder == username) {
+                            notifyEndingSoonButWinning({ ifttt: true }, listingId, detail[listingId].bid)
+                        } else {
+                            notifyEndingSoonAndLosing({ ifttt: true }, listingId, detail[listingId].bid, detail[listingId].bid + detail[listingId].bid_increment)
+                        }
+                    },
+                    'unlessWinning': async () => {
+                        const detail = await ApiCalls.refresh([listingId])
+
+                        if (detail[listingId].bidder == username) {
+                            return
+                        }
+
+                        notifyEndingSoonAndLosing({ ifttt: true }, listingId, detail[listingId].bid, detail[listingId].bid + detail[listingId].bid_increment)
+                    },
+                }
+
+                const storageKeys = ['options.notifications.ending', 'options.ifttt.ending']
+                const storedData = await chrome.storage.sync.get(storageKeys)
+                const notificationSetting = storedData[storageKeys[0]] || 'unlessWinning'
+                const iftttSetting = storedData[storageKeys[1]] || 'unlessWinning'
+
+                // execute the notification action based on the setting
+                if (notificationSetting in notificationActions) {
+                    notificationActions[notificationSetting]()
+                }
+
+                // execute the ifttt action based on the setting
+                if (iftttSetting in iftttActions) {
+                    iftttActions[iftttSetting]()
+                }
+            }, msFromNow)
+        }
     },
 
     BID_PLACED: async (args) => {
@@ -237,7 +377,7 @@ const ContentScriptHandlers = {
     OUTBID: async (args) => {
         // eg: { "user_id": 17965, "listing_id": 974702, "previous_bid": 2, "current_bid": 3 }
 
-        const noticiationActions = {
+        const notifcationActions = {
             'disabled': async () => {
                 return
             },
@@ -285,8 +425,8 @@ const ContentScriptHandlers = {
         const iftttSetting = storedData[storageKeys[1]] || 'last2minutes'
 
         // execute the notification action based on the setting
-        if (notificationSetting in noticiationActions) {
-            noticiationActions[notificationSetting]()
+        if (notificationSetting in notifcationActions) {
+            notifcationActions[notificationSetting]()
         }
 
         // execute the ifttt action based on the setting
@@ -296,7 +436,7 @@ const ContentScriptHandlers = {
     },
 
     ITEM_WON: async (args) => {
-        const noticiationActions = {
+        const notificationActions = {
             'disabled': async () => {
                 return
             },
@@ -320,8 +460,8 @@ const ContentScriptHandlers = {
         const iftttSetting = storedData[storageKeys[1]] || 'always'
 
         // execute the notification action based on the setting
-        if (notificationSetting in noticiationActions) {
-            noticiationActions[notificationSetting]()
+        if (notificationSetting in notificationActions) {
+            notificationActions[notificationSetting]()
         }
 
         // execute the ifttt action based on the setting
@@ -336,32 +476,62 @@ const NotificationHandlers = {
         openWatchedListings()
     },
 
-    OUTBID: (buttonIndex, [ listingid, nextBid ]) => {
-        switch (buttonIndex) {
-            // no button
-            case -1:
-                openListing(listingid)
-            break
-
-            // unwatch button
-            case 0:
-                ApiCalls.ignore(listingid)
-            break
-
-            // bid button
-            case 1:
-                ApiCalls.bid(listingid, nextBid)
-            break
-        }
-    },
-
-    ITEM_WON: (buttonIndex, [ listing_id, ...others ]) => {
+    ENDING_WINNING: (buttonIndex, [ listingId ]) => {
         switch (buttonIndex) {
             // no button
             case -1:
             // view button
             case 0:
-                openListing(listing_id)
+                openListing(listingId)
+            break
+        }
+    },
+
+    ENDING_LOSING: (buttonIndex, [ listingId, nextBid ]) => {
+        switch (buttonIndex) {
+            // no button
+            case -1:
+                openListing(listingId)
+            break
+
+            // unwatch button
+            case 0:
+                ApiCalls.ignore(listingId)
+            break
+
+            // bid button
+            case 1:
+                ApiCalls.bid(listingId, nextBid)
+            break
+        }
+    },
+
+    OUTBID: (buttonIndex, [ listingId, nextBid ]) => {
+        switch (buttonIndex) {
+            // no button
+            case -1:
+                openListing(listingId)
+            break
+
+            // unwatch button
+            case 0:
+                ApiCalls.ignore(listingId)
+            break
+
+            // bid button
+            case 1:
+                ApiCalls.bid(listingId, nextBid)
+            break
+        }
+    },
+
+    ITEM_WON: (buttonIndex, [ listingId ]) => {
+        switch (buttonIndex) {
+            // no button
+            case -1:
+            // view button
+            case 0:
+                openListing(listingId)
             break
         }
     }
