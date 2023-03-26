@@ -8,7 +8,7 @@ const watchedListingsUrl = 'https://kotnauction.com/listings/watched'
 
 let watchedListings = {}
 
-async function showWatchedListings() {
+async function openWatchedListings() {
     const tabs = await chrome.tabs.query({ url: `${watchedListingsUrl}*` })
 
     if (tabs.length) {
@@ -21,7 +21,7 @@ async function showWatchedListings() {
     }
 }
 
-async function showListing(id) {
+async function openListing(id) {
     const tabs = await chrome.tabs.query({ url: `${listingsUrl}/${id}*` })
 
     if (tabs.length) {
@@ -34,7 +34,7 @@ async function showListing(id) {
     }
 }
 
-function showNotification(id, title, message, buttons = undefined) {
+function createNotification(id, title, message, buttons = undefined) {
     return chrome.notifications.create(id, {
         type: 'basic',
         title,
@@ -95,21 +95,43 @@ async function hasOffscreenDocument(path) {
     return false
 }
 
-async function notifyOutbid(listingId, previousBid, currentBid, nextBid) {
-    await playSound('beeps')
+async function notifyOutbid(mediums, listingId, previousBid, currentBid, nextBid) {
+    if (mediums.sound) {
+        await playSound('beeps')
+    }
 
-    return showNotification(`OUTBID.${listingId}.${nextBid}`, "You've been outbid!", `Previous bid $${previousBid}, Current bid: $${currentBid}`, [
-        { title: 'Unwatch' },
-        { title: `Bid $${nextBid}` },
-    ])
+    if (mediums.notification) {
+        createNotification(`OUTBID.${listingId}.${nextBid}`, "You've been outbid!", `Previous bid $${previousBid}, Current bid: $${currentBid}`, [
+            { title: 'Unwatch' },
+            { title: `Bid $${nextBid}` },
+        ])
+    }
+
+    if (mediums.ifttt) {
+        makeIftttWebhookCall('kotn_outbid', {
+            text: `You've been outbid! Previous bid $${previousBid}, Current bid: $${currentBid}`,
+            listingUrl: `${listingsUrl}/${listingId}`,
+        })
+    }
 }
 
-async function notifyItemWon() {
-    await playSound('yay')
+async function notifyItemWon(mediums, listingId) {
+    if (mediums.sound) {
+        await playSound('yay')
+    }
 
-    return showNotification(`ITEM_WON.${listing_id}`, 'Item Won', "You've won an item!", [
-        { title: 'View listing' },
-    ])
+    if (mediums.notification) {
+        createNotification(`ITEM_WON.${listingId}`, 'Item Won', "You've won an item!", [
+            { title: 'View listing' },
+        ])
+    }
+
+    if (mediums.ifttt) {
+        makeIftttWebhookCall('kotn_item_won', {
+            text: "You've won an item!",
+            listingUrl: `${listingsUrl}/${listingId}`,
+        })
+    }
 }
 
 async function readCookie(name) {
@@ -142,13 +164,37 @@ const ApiCalls = {
     refresh: (ids) => makeApiCall('https://kotnauction.com/listings/refresh', 'POST', { ids }),
 }
 
+async function makeIftttWebhookCall(eventName, data) {
+    const storageKey = 'options.ifttt.webhookKey'
+    const storedData = await chrome.storage.sync.get(storageKey)
+    const key = storedData[storageKey]
+
+    if (!key) {
+        return
+    }
+
+    const headers = {}
+
+    if (data) {
+        headers['Content-Type'] = 'application/json'
+    }
+
+    const body = data ? JSON.stringify(data) : undefined
+
+    await fetch(`https://maker.ifttt.com/trigger/${eventName}/json/with/key/${key}`, { headers, body, method: 'POST', mode: 'no-cors' })
+}
+
 const PopupHandlers = {
     SHOW_WATCHED_LISTINGS: () => {
-        showWatchedListings()
+        openWatchedListings()
     },
 
-    TEST_NOTIFICATION: () => {
-        notifyOutbid(111111, 5, 10, 15)
+    TEST_OUTBID_NOTIFICATION: () => {
+        notifyOutbid({ sound: true, ifttt: true, notification: true}, 111111, 5, 10, 15)
+    },
+
+    TEST_ITEM_WON_NOTIFICATION: () => {
+        notifyItemWon({ sound: true, ifttt: true, notification: true}, 111111)
     },
 }
 
@@ -175,67 +221,106 @@ const WebsocketHandlers = {
 
         watchedListings = args.listingData
 
-        const actions = {
-            'disabled': () => {
+        const noticiationActions = {
+            'disabled': async () => {
                 return
             },
-            'always': () => {
-                notifyOutbid(args.listing_id, args.previous_bid, args.current_bid, detail[args.listing_id].bid + detail[args.listing_id].bid_increment)
+            'always': async () => {
+                notifyOutbid({ sound: true, notification: true}, args.listing_id, args.previous_bid, args.current_bid, detail[args.listing_id].bid + detail[args.listing_id].bid_increment)
             },
-            'last2minutes': () => {
+            'last2minutes': async () => {
                 const endTime = moment(detail[args.listing_id].end)
                 const twoMinsFromEndTime = moment(endTime).subtract(2, 'minutes')
 
                 // check if auction is ending
                 if (moment().isBetween(twoMinsFromEndTime, endTime) == false) {
-                    notifyOutbid(args.listing_id, args.previous_bid, args.current_bid, detail[args.listing_id].bid + detail[args.listing_id].bid_increment)
+                    notifyOutbid({ sound: true, notification: true}, args.listing_id, args.previous_bid, args.current_bid, detail[args.listing_id].bid + detail[args.listing_id].bid_increment)
                 }
             },
         }
 
-        const outbidKey = 'options.notifications.outbid'
-        const storedData = await chrome.storage.sync.get(outbidKey)
-        const setting = storedData[outbidKey] || 'last2minutes'
+        const iftttActions = {
+            'disabled': async () => {
+                return
+            },
+            'always': async () => {
+                notifyOutbid({ ifttt: true }, args.listing_id, args.previous_bid, args.current_bid, detail[args.listing_id].bid + detail[args.listing_id].bid_increment)
+            },
+            'last2minutes': async () => {
+                const endTime = moment(detail[args.listing_id].end)
+                const twoMinsFromEndTime = moment(endTime).subtract(2, 'minutes')
 
-        // execute the action based on the setting
-        if (setting in actions) {
-            actions[setting]()
+                // check if auction is ending
+                if (moment().isBetween(twoMinsFromEndTime, endTime) == false) {
+                    notifyOutbid({ ifttt: true }, args.listing_id, args.previous_bid, args.current_bid, detail[args.listing_id].bid + detail[args.listing_id].bid_increment)
+                }
+            },
+        }
+
+        const storageKeys = ['options.notifications.outbid', 'options.ifttt.outbid']
+        const storedData = await chrome.storage.sync.get(storageKeys)
+        const notificationSetting = storedData[storageKeys[0]] || 'last2minutes'
+        const iftttSetting = storedData[storageKeys[1]] || 'last2minutes'
+
+        // execute the notification action based on the setting
+        if (notificationSetting in noticiationActions) {
+            noticiationActions[notificationSetting]()
+        }
+
+        // execute the ifttt action based on the setting
+        if (iftttSetting in iftttActions) {
+            iftttActions[iftttSetting]()
         }
     },
 
     ITEM_WON: async (args) => {
         watchedListings = args.listingData
 
-        const actions = {
-            'disabled': () => {
+        const noticiationActions = {
+            'disabled': async () => {
                 return
             },
-            'always': () => {
-                notifyItemWon(args)
+            'always': async () => {
+                notifyItemWon({ sound: true, notification: true}, args.listing_id)
             },
         }
 
-        const outbidKey = 'options.notifications.outbid'
-        const storedData = await chrome.storage.sync.get(outbidKey)
-        const setting = storedData[outbidKey] || 'always'
+        const iftttActions = {
+            'disabled': async () => {
+                return
+            },
+            'always': async () => {
+                notifyItemWon({ ifttt: true }, args.listing_id)
+            },
+        }
 
-        // execute the action based on the setting
-        if (setting in actions) {
-            actions[setting]()
+        const storageKeys = ['options.notifications.itemWon', 'options.ifttt.itemWon']
+        const storedData = await chrome.storage.sync.get(storageKeys)
+        const notificationSetting = storedData[storageKeys[0]] || 'always'
+        const iftttSetting = storedData[storageKeys[1]] || 'always'
+
+        // execute the notification action based on the setting
+        if (notificationSetting in noticiationActions) {
+            noticiationActions[notificationSetting]()
+        }
+
+        // execute the ifttt action based on the setting
+        if (iftttSetting in iftttActions) {
+            iftttActions[iftttSetting]()
         }
     },
 }
 
 const NotificationHandlers = {
     INSTALLED: () => {
-        showWatchedListings()
+        openWatchedListings()
     },
 
     OUTBID: (buttonIndex, [ listingid, nextBid ]) => {
         switch (buttonIndex) {
             // no button
             case -1:
-                showListing(listingid)
+                openListing(listingid)
             break
 
             // unwatch button
@@ -256,7 +341,7 @@ const NotificationHandlers = {
             case -1:
             // view button
             case 0:
-                showListing(listing_id)
+                openListing(listing_id)
             break
         }
     }
@@ -267,7 +352,7 @@ chrome.runtime.onInstalled.addListener(async ({ reason, version }) => {
     if (reason === chrome.runtime.OnInstalledReason.INSTALL) {
         await playSound('yay')
 
-        showNotification('INSTALLED', 'Extension installed', 'Yay!')
+        createNotification('INSTALLED', 'Extension installed', 'Yay!')
     }
 })
 

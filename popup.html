@@ -5,7 +5,7 @@
         html {
             background: #333;
             color: #e5e5e5;
-            min-width: 350px;
+            min-width: 400px;
             min-height: 100px;
         }
 
@@ -23,6 +23,10 @@
             margin: 4px;
         }
 
+        label input {
+            width: 192px;
+        }
+
         label select {
             width: 200px;
         }
@@ -32,7 +36,7 @@
 <body>
     <h2>KotN Helper Options</h2>
     <div>
-        <h3>Notifications</h3>
+        <h3>Browser Notifications</h3>
         <div>
             <label>
                 When outbid
@@ -54,6 +58,35 @@
         </div>
     </div>
 
+    <h3>IFTTT Notifications</h3>
+    <p>Get your Webhook Key by clicking Documentation <a href="https://ifttt.com/maker_webhooks" target="_blank">here</a>.</p>
+    <p>Use the Webook service "Receive a web request with a JSON payload" with event names "kotn_outbid" and "kotn_item_won".</p>
+    <div>
+        <label>
+            Webhook Key
+            <input type="text" data-option_key="options.ifttt.webhookKey" />
+        </label>
+    </div>
+    <div>
+        <label>
+            When outbid
+            <select data-option_key="options.ifttt.outbid">
+                <option value="disabled">No notification</option>
+                <option value="always">Always notify me</option>
+                <option value="last2minutes" selected>Notify if 2 or less minutes left</option>
+            </select>
+        </label>
+    </div>
+    <div>
+        <label>
+            When item won
+            <select data-option_key="options.ifttt.itemWon">
+                <option value="disabled">No notification</option>
+                <option value="always" selected>Always notify me</option>
+            </select>
+        </label>
+    </div>
+
     <div>
         <h3>Tweaks</h3>
         <div>
@@ -73,7 +106,10 @@
         <a id="watched_listings_link" href="#">Open Watched Listings</a>
     </p>
     <p>
-        <a id="send_test_notification" href="#">Send Test notification</a>
+        <a id="test_outbid_notification" href="#">Test outbid notification</a>
+    </p>
+    <p>
+        <a id="test_item_won_notification" href="#">Test item won notification</a>
     </p>
 
     <script type="text/javascript" src="popup.js"></script>
