@@ -41,6 +41,16 @@
         <h3>Browser Notifications</h3>
         <div>
             <label>
+                When listing is ending
+                <select data-option_key="options.notifications.ending">
+                    <option value="disabled">No notification</option>
+                    <option value="always">Always notify me</option>
+                    <option value="unlessWinning" selected>Notify if not winning</option>
+                </select>
+            </label>
+        </div>
+        <div>
+            <label>
                 When outbid
                 <select data-option_key="options.notifications.outbid">
                     <option value="disabled">No notification</option>
@@ -67,6 +77,16 @@
         <label>
             Webhook Key
             <input type="text" data-option_key="options.ifttt.webhookKey" />
+        </label>
+    </div>
+    <div>
+        <label>
+            When listing is ending
+            <select data-option_key="options.ifttt.ending">
+                <option value="disabled">No notification</option>
+                <option value="always">Always notify me</option>
+                <option value="unlessWinning" selected>Notify if not winning</option>
+            </select>
         </label>
     </div>
     <div>
