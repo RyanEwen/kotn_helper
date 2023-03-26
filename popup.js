@@ -1,7 +1,5 @@
-const inputEls = document.querySelectorAll('*[data-option_key]')
-
-// populate with stored values
-inputEls.forEach(async inputEl => {
+// populate options with stored values
+document.querySelectorAll('*[data-option_key]').forEach(async inputEl => {
     const storedData = await chrome.storage.sync.get(inputEl.dataset.option_key)
 
     // get saved value if exists
@@ -10,7 +8,7 @@ inputEls.forEach(async inputEl => {
     }
 })
 
-// listen for option changes
+// listen for changes to options
 document.addEventListener('input', async event => {
     const inputEl = event.target
 
@@ -19,4 +17,14 @@ document.addEventListener('input', async event => {
     })
 })
 
-// TODO open watched listings existing tab if avail
+// listen for link click
+document.querySelector('#watched_listings_link').addEventListener('click', () => {
+    chrome.runtime.sendMessage({
+        target: 'ServiceWorker',
+        type: 'PopupMessage',
+        data: {
+            action: 'showWatchedListings',
+            args: {},
+        },
+    })
+})

@@ -139,7 +139,14 @@ async function notifyItemWon() {
     ])
 }
 
-// handle messages from the script
+// handle messages from popup
+const popupHandlers = {
+    'showWatchedListings': (args) => {
+        showWatchedListings()
+    },
+}
+
+// handle messages from websockets
 const websocketHandlers = {
     'BidPlaced': async (args) => {
         // {
@@ -263,10 +270,13 @@ chrome.runtime.onMessage.addListener(message => {
         return
     }
 
-    // TODO only listen for events from the one tab at a time
-
     console.log('KotNHelper service worker received', message)
 
+    if (message.type == 'PopupMessage' && message.data.action in popupHandlers) {
+        return popupHandlers[message.data.action](message.data.args)
+    }
+
+    // TODO only listen for events from the one tab at a time
     if (message.type == 'WebsocketMessage' && message.data.type in websocketHandlers) {
         return websocketHandlers[message.data.type](message.data.args)
     }
