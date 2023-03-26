@@ -17,7 +17,7 @@ async function openWatchedListings() {
         chrome.windows.update(tabs[0].windowId, { focused: true })
     } else {
         // open a new tab and focus window
-        chrome.tabs.create({ url: `${watchedListingsUrl}?per-page=100` })
+        chrome.tabs.create({ url: `${watchedListingsUrl}?per_page=100` })
     }
 }
 
