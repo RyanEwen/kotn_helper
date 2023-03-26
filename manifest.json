@@ -47,6 +47,7 @@
             ],
             "resources": [
                 "inject.js",
+                "inject.css",
                 "favicon.ico",
                 "audio/beep.mp3",
                 "audio/yay.mp3"

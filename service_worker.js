@@ -104,7 +104,7 @@ async function hasOffscreenDocument(path) {
 }
 
 async function notifyOutbid(mediums, listingId, previousBid, currentBid, nextBid) {
-    const listingName = watchedListings[listingId] || ''
+    const listingName = watchedListings[listingId].name || ''
 
     if (mediums.sound) {
         await playSound('beeps')
@@ -130,7 +130,7 @@ async function notifyOutbid(mediums, listingId, previousBid, currentBid, nextBid
 }
 
 async function notifyItemWon(mediums, listingId) {
-    const listingName = watchedListings[listingId] || ''
+    const listingName = watchedListings[listingId].name || ''
 
     if (mediums.sound) {
         await playSound('yay')
@@ -217,7 +217,7 @@ const PopupHandlers = {
 
 const ContentScriptHandlers = {
     PAGE_LOAD: async (args) => {
-        watchedListings = { '111111': "TEST ITEM NAME", ...args.watchedListings }
+        watchedListings = { '111111': { name: "TEST ITEM NAME" }, ...args.watchedListings }
     },
 
     BID_PLACED: async (args) => {
@@ -351,7 +351,6 @@ const NotificationHandlers = {
             // bid button
             case 1:
                 ApiCalls.bid(listingid, nextBid)
-                openListing(listingid)
             break
         }
     },
