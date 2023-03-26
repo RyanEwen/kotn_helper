@@ -6,14 +6,19 @@ window.addEventListener('message', (event) => {
         return
     }
 
-    const data =  {
+    console.log('KotNHelper sending to service worker', {
         type: event.data.type,
         args: event.data.args,
-    }
+    })
 
-    console.log('KotNHelper sending to service worker', data)
-
-    chrome.runtime.sendMessage({ target: 'SERVICE_WORKER', type: 'WEBSOCKET_MESSAGE', data })
+    chrome.runtime.sendMessage({
+        target: 'SERVICE_WORKER',
+        type: 'WEBSOCKET_MESSAGE',
+        data: {
+            type: event.data.type,
+            args: event.data.args,
+        },
+    })
 })
 
 // create script tag that adds inject.js into the page

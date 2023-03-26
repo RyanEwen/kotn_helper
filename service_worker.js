@@ -21,6 +21,14 @@ async function openWatchedListings() {
     }
 }
 
+async function reloadWatchedListings() {
+    const tabs = await chrome.tabs.query({ url: `${watchedListingsUrl}*` })
+
+    if (tabs.length) {
+        chrome.tabs.reload(tabs[0].id)
+    }
+}
+
 async function openListing(id) {
     const tabs = await chrome.tabs.query({ url: `${listingsUrl}/${id}*` })
 
@@ -56,7 +64,7 @@ async function playSound(sound) {
     await chrome.runtime.sendMessage({
         target: 'OFFSCREEN',
         type: 'PLAY_SOUND',
-        data: sound
+        data: sound,
     })
 }
 
@@ -96,12 +104,14 @@ async function hasOffscreenDocument(path) {
 }
 
 async function notifyOutbid(mediums, listingId, previousBid, currentBid, nextBid) {
+    const listingName = watchedListings[listingId] || ''
+
     if (mediums.sound) {
         await playSound('beeps')
     }
 
     if (mediums.notification) {
-        createNotification(`OUTBID.${listingId}.${nextBid}`, "You've been outbid!", `Previous bid $${previousBid}, Current bid: $${currentBid}`, [
+        createNotification(`OUTBID.${listingId}.${nextBid}`, "You've been outbid!", `$${currentBid} - ${listingName}`, [
             { title: 'Unwatch' },
             { title: `Bid $${nextBid}` },
         ])
@@ -109,19 +119,25 @@ async function notifyOutbid(mediums, listingId, previousBid, currentBid, nextBid
 
     if (mediums.ifttt) {
         makeIftttWebhookCall('kotn_outbid', {
-            text: `You've been outbid! Previous bid $${previousBid}, Current bid: $${currentBid}`,
+            text: "You've been outbid!",
             listingUrl: `${listingsUrl}/${listingId}`,
+            listingName,
+            previousBid,
+            currentBid,
+            nextBid,
         })
     }
 }
 
 async function notifyItemWon(mediums, listingId) {
+    const listingName = watchedListings[listingId] || ''
+
     if (mediums.sound) {
         await playSound('yay')
     }
 
     if (mediums.notification) {
-        createNotification(`ITEM_WON.${listingId}`, 'Item Won', "You've won an item!", [
+        createNotification(`ITEM_WON.${listingId}`, 'Item won!', listingName, [
             { title: 'View listing' },
         ])
     }
@@ -130,6 +146,7 @@ async function notifyItemWon(mediums, listingId) {
         makeIftttWebhookCall('kotn_item_won', {
             text: "You've won an item!",
             listingUrl: `${listingsUrl}/${listingId}`,
+            listingName,
         })
     }
 }
@@ -200,26 +217,25 @@ const PopupHandlers = {
 
 const WebsocketHandlers = {
     PAGE_LOAD: async (args) => {
-        watchedListings = args.listingData
+        watchedListings = { '111111': "TEST ITEM NAME", ...args.watchedListings }
     },
 
     BID_PLACED: async (args) => {
         // eg: { "id": 13841801, "listing_id": 974702, "bid": 3, "bidder": "yourguymike", "created_at": "2023-03-21 12:30:59", "listing_end": "2023-03-26 16:00:00" }
-
-        watchedListings = args.listingData
     },
 
     WATCH_STATE_CHANGED: async (args) => {
         // eg: { "listing_id": 974742, "state": "ignore" }
         // known states: "bid", "watch", "ignore", null
 
-        watchedListings = args.listingData
+        // refresh watched listings page if the item isn't on it
+        if (args.listing_id in watchedListings == false) {
+            reloadWatchedListings()
+        }
     },
 
     OUTBID: async (args) => {
         // eg: { "user_id": 17965, "listing_id": 974702, "previous_bid": 2, "current_bid": 3 }
-
-        watchedListings = args.listingData
 
         const noticiationActions = {
             'disabled': async () => {
@@ -280,8 +296,6 @@ const WebsocketHandlers = {
     },
 
     ITEM_WON: async (args) => {
-        watchedListings = args.listingData
-
         const noticiationActions = {
             'disabled': async () => {
                 return

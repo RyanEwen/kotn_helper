@@ -3,7 +3,15 @@
         window.postMessage({ from: 'KOTN_HELPER', type, args })
     }
 
-    forward('PAGE_LOAD', { listingData })
+    const watchedListings = {}
+
+    Object.keys(listingData).forEach((listingId) => {
+        const listingEl = document.querySelector(`.listings-grid *[data-id="${listingId}"] .listing-tile-title-link`)
+
+        watchedListings[listingId] = { ...listingData, name: listingEl.innerText }
+    })
+
+    forward('PAGE_LOAD', { watchedListings })
 
     window.Echo.channel('public').listen('BidPlaced', message => {
         forward('BID_PLACED', { ...message, listingData })
