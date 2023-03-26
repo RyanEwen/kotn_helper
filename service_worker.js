@@ -226,9 +226,12 @@ const WebsocketHandlers = {
                 return
             },
             'always': async () => {
+                const detail = await ApiCalls.refresh([args.listing_id])
+
                 notifyOutbid({ sound: true, notification: true}, args.listing_id, args.previous_bid, args.current_bid, detail[args.listing_id].bid + detail[args.listing_id].bid_increment)
             },
             'last2minutes': async () => {
+                const detail = await ApiCalls.refresh([args.listing_id])
                 const endTime = moment(detail[args.listing_id].end)
                 const twoMinsFromEndTime = moment(endTime).subtract(2, 'minutes')
 
@@ -244,9 +247,12 @@ const WebsocketHandlers = {
                 return
             },
             'always': async () => {
+                const detail = await ApiCalls.refresh([args.listing_id])
+
                 notifyOutbid({ ifttt: true }, args.listing_id, args.previous_bid, args.current_bid, detail[args.listing_id].bid + detail[args.listing_id].bid_increment)
             },
             'last2minutes': async () => {
+                const detail = await ApiCalls.refresh([args.listing_id])
                 const endTime = moment(detail[args.listing_id].end)
                 const twoMinsFromEndTime = moment(endTime).subtract(2, 'minutes')
 
