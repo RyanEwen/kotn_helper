@@ -5,7 +5,7 @@
         html {
             background: #333;
             color: #e5e5e5;
-            min-width: 400px;
+            min-width: 375px;
             min-height: 100px;
         }
 
@@ -34,7 +34,9 @@
 </head>
 
 <body>
-    <h2>KotN Helper Options</h2>
+    <h2>KotN Helper</h2>
+    <p><em>Notifications only work while the Watched Listings page is open!</em></p>
+    <p><a id="watched_listings_link" href="#">Open Watched Listings</a></p>
     <div>
         <h3>Browser Notifications</h3>
         <div>
@@ -102,15 +104,9 @@
         </div>
     </div>
 
-    <p>
-        <a id="watched_listings_link" href="#">Open Watched Listings</a>
-    </p>
-    <p>
-        <a id="test_outbid_notification" href="#">Test outbid notification</a>
-    </p>
-    <p>
-        <a id="test_item_won_notification" href="#">Test item won notification</a>
-    </p>
+    <h3>Testing</h3>
+    <p><a id="test_outbid_notification" href="#">Test outbid notification</a></p>
+    <p><a id="test_item_won_notification" href="#">Test item won notification</a></p>
 
     <script type="text/javascript" src="popup.js"></script>
 </body>
