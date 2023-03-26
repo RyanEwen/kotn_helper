@@ -13,7 +13,7 @@ window.addEventListener('message', (event) => {
 
     chrome.runtime.sendMessage({
         target: 'SERVICE_WORKER',
-        type: 'WEBSOCKET_MESSAGE',
+        type: 'CONTENT_SCRIPT',
         data: {
             type: event.data.type,
             args: event.data.args,

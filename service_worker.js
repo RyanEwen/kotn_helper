@@ -215,7 +215,7 @@ const PopupHandlers = {
     },
 }
 
-const WebsocketHandlers = {
+const ContentScriptHandlers = {
     PAGE_LOAD: async (args) => {
         watchedListings = { '111111': "TEST ITEM NAME", ...args.watchedListings }
     },
@@ -390,8 +390,8 @@ chrome.runtime.onMessage.addListener((message) => {
     }
 
     // TODO only listen for events from the one tab at a time
-    if (message.type == 'WEBSOCKET_MESSAGE' && message.data.type in WebsocketHandlers) {
-        return WebsocketHandlers[message.data.type](message.data.args)
+    if (message.type == 'CONTENT_SCRIPT' && message.data.type in ContentScriptHandlers) {
+        return ContentScriptHandlers[message.data.type](message.data.args)
     }
 
     console.warn(`Unexpected message type received: '${message.type}'.`)
