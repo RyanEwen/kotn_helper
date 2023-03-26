@@ -247,7 +247,8 @@ const notificationHandlers = {
     },
     itemWon: (index, [ listing_id, ...others ]) => {
         switch (index) {
-            // views
+            // view
+            case -1:
             case 0:
                 showListing(listing_id)
             break
