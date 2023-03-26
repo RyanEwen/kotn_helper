@@ -236,7 +236,7 @@ const WebsocketHandlers = {
                 const twoMinsFromEndTime = moment(endTime).subtract(2, 'minutes')
 
                 // check if auction is ending
-                if (moment().isBetween(twoMinsFromEndTime, endTime) == false) {
+                if (moment().isBetween(twoMinsFromEndTime, endTime)) {
                     notifyOutbid({ sound: true, notification: true}, args.listing_id, args.previous_bid, args.current_bid, detail[args.listing_id].bid + detail[args.listing_id].bid_increment)
                 }
             },
@@ -257,7 +257,7 @@ const WebsocketHandlers = {
                 const twoMinsFromEndTime = moment(endTime).subtract(2, 'minutes')
 
                 // check if auction is ending
-                if (moment().isBetween(twoMinsFromEndTime, endTime) == false) {
+                if (moment().isBetween(twoMinsFromEndTime, endTime)) {
                     notifyOutbid({ ifttt: true }, args.listing_id, args.previous_bid, args.current_bid, detail[args.listing_id].bid + detail[args.listing_id].bid_increment)
                 }
             },
@@ -337,6 +337,7 @@ const NotificationHandlers = {
             // bid button
             case 1:
                 ApiCalls.bid(listingid, nextBid)
+                openListing(listingid)
             break
         }
     },
