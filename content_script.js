@@ -6,11 +6,6 @@ window.addEventListener('message', (event) => {
         return
     }
 
-    console.log('KotNHelper sending to service worker', {
-        type: event.data.type,
-        args: event.data.args,
-    })
-
     chrome.runtime.sendMessage({
         target: 'SERVICE_WORKER',
         type: 'CONTENT_SCRIPT',
@@ -20,6 +15,17 @@ window.addEventListener('message', (event) => {
         },
     })
 })
+
+setInterval(() => {
+    chrome.runtime.sendMessage({
+        target: 'SERVICE_WORKER',
+        type: 'CONTENT_SCRIPT',
+        data: {
+            type: 'KEEPALIVE',
+            args: {},
+        },
+    })
+}, 30000)
 
 // create script tag that adds inject.js into the page
 const script = document.createElement('script')

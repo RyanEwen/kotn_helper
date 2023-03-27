@@ -268,11 +268,15 @@ const PopupHandlers = {
 }
 
 const ContentScriptHandlers = {
+    KEEPALIVE: async (args) => {
+        // pass
+    },
     PAGE_LOAD: async (args) => {
         userId = args.userId
 
         username = args.username
 
+        // clear old timeouts
         for (let listingId in watchedListings) {
             if (listingId == '111111') {
                 continue
@@ -281,26 +285,43 @@ const ContentScriptHandlers = {
             clearTimeout(watchedListings[listingId].timeout)
         }
 
+        // add test listing
         watchedListings = {
             '111111': { name: "TEST ITEM NAME" },
             ...args.watchedListings
         }
 
+        // create new timeouts
         for (let listingId in watchedListings) {
             if (listingId == '111111') {
                 continue
             }
 
-            const msFromNow = moment(watchedListings[listingId].end).subtract(2, 'minutes').subtract(5, 'seconds').diff()
+            const endTime = moment(watchedListings[listingId].end)
+            const twoMinsFromEndTime = moment(endTime).subtract(2, 'minutes')
 
+            // don't notify if already ending right now
+            if (moment().isBetween(twoMinsFromEndTime, endTime)) {
+                continue
+            }
+
+            // get 2m5s before endTime in ms
+            const milisecondsFromNow = moment(twoMinsFromEndTime).subtract(5, 'seconds').diff()
+
+            // run notify code 2m5s before endTime
             watchedListings[listingId].timeout = setTimeout(async () => {
+                const detail = await ApiCalls.refresh([listingId])
+
+                // don't go any further if the listing isn't watched or bid on
+                if (!detail[listingId].watch || detail[listingId].watch == 'ignore') {
+                    return
+                }
+
                 const notificationActions = {
                     'disabled': async () => {
                         return
                     },
                     'always': async () => {
-                        const detail = await ApiCalls.refresh([listingId])
-
                         if (detail[listingId].bidder == username) {
                             notifyEndingSoonButWinning({ sound: true, notification: true}, listingId, detail[listingId].bid)
                         } else {
@@ -308,8 +329,6 @@ const ContentScriptHandlers = {
                         }
                     },
                     'unlessWinning': async () => {
-                        const detail = await ApiCalls.refresh([listingId])
-
                         if (detail[listingId].bidder == username) {
                             return
                         }
@@ -323,8 +342,6 @@ const ContentScriptHandlers = {
                         return
                     },
                     'always': async () => {
-                        const detail = await ApiCalls.refresh([listingId])
-
                         if (detail[listingId].bidder == username) {
                             notifyEndingSoonButWinning({ ifttt: true }, listingId, detail[listingId].bid)
                         } else {
@@ -332,8 +349,6 @@ const ContentScriptHandlers = {
                         }
                     },
                     'unlessWinning': async () => {
-                        const detail = await ApiCalls.refresh([listingId])
-
                         if (detail[listingId].bidder == username) {
                             return
                         }
@@ -356,7 +371,7 @@ const ContentScriptHandlers = {
                 if (iftttSetting in iftttActions) {
                     iftttActions[iftttSetting]()
                 }
-            }, msFromNow)
+            }, milisecondsFromNow)
         }
     },
 
@@ -482,7 +497,8 @@ const NotificationHandlers = {
             case -1:
             // view button
             case 0:
-                openListing(listingId)
+                // openListing(listingId)
+                openWatchedListings()
             break
         }
     },
@@ -491,7 +507,8 @@ const NotificationHandlers = {
         switch (buttonIndex) {
             // no button
             case -1:
-                openListing(listingId)
+                // openListing(listingId)
+                openWatchedListings()
             break
 
             // unwatch button
@@ -510,7 +527,8 @@ const NotificationHandlers = {
         switch (buttonIndex) {
             // no button
             case -1:
-                openListing(listingId)
+                // openListing(listingId)
+                openWatchedListings()
             break
 
             // unwatch button
@@ -529,6 +547,9 @@ const NotificationHandlers = {
         switch (buttonIndex) {
             // no button
             case -1:
+                // pass
+            break
+
             // view button
             case 0:
                 openListing(listingId)
