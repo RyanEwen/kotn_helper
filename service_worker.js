@@ -53,7 +53,7 @@ function createNotification(id, title, message, buttons = undefined) {
         message,
         buttons,
         iconUrl: 'images/icon-48.jpeg',
-        requireInteraction: true,
+        // requireInteraction: true,
     })
 }
 
