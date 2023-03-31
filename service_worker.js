@@ -57,9 +57,16 @@ function createNotification(id, title, message, buttons = undefined) {
     })
 }
 
-function updateBadge(text) {
-    chrome.action.setBadgeBackgroundColor({ color: 'red' })
+function clearBadge() {
+    updateBadge('')
+}
+
+function updateBadge(text, color) {
     chrome.action.setBadgeText({ text })
+
+    if (color) {
+        chrome.action.setBadgeBackgroundColor({ color })
+    }
 }
 
 async function playSound(sound) {
@@ -259,6 +266,7 @@ const actionHandlers = {
             if (data.watchedListingsTabIds[0] == sender.tab.id) {
                 console.log(`Enabling comms via tab ${sender.tab.id} again due to refresh`)
                 chrome.tabs.sendMessage(sender.tab.id, { action: 'ENABLE_COMMS' })
+                updateBadge('OK', 'green')
             }
         } else {
             // tab is new so add the id to the list
@@ -268,6 +276,7 @@ const actionHandlers = {
             if (data.watchedListingsTabIds.length == 1) {
                 console.log(`Enabling comms via tab ${sender.tab.id}`)
                 chrome.tabs.sendMessage(sender.tab.id, { action: 'ENABLE_COMMS' })
+                updateBadge('OK', 'green')
             }
         }
     },
@@ -602,9 +611,11 @@ chrome.tabs.onUpdated.addListener(( updatedTabId, changeInfo, tab ) => {
             // if there are other tabs that can be used for comms
             if (data.watchedListingsTabIds.length) {
                 // use the first one in the list
+                updateBadge('OK', 'green')
                 console.log(`Enabling comms via tab ${data.watchedListingsTabIds[0]} due to tab ${commsTabId} navigating away`)
                 chrome.tabs.sendMessage(data.watchedListingsTabIds[0], { action: 'ENABLE_COMMS' })
             } else {
+                clearBadge()
                 console.log('No tabs available for comms.')
             }
         }
@@ -628,10 +639,14 @@ chrome.tabs.onRemoved.addListener(( removedTabId ) => {
         // if there are other tabs that can be used for comms
         if (data.watchedListingsTabIds.length) {
             // use the first one in the list
+            updateBadge('OK', 'green')
             console.log(`Enabling comms via tab ${data.watchedListingsTabIds[0]} due to tab ${commsTabId} closing`)
             chrome.tabs.sendMessage(data.watchedListingsTabIds[0], { action: 'ENABLE_COMMS' })
         } else {
+            clearBadge()
             console.log('No tabs available for comms.')
         }
     }
 })
+
+clearBadge()
