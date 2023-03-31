@@ -19,33 +19,15 @@ document.addEventListener('input', async event => {
 
 // listen for watched listings link click
 document.querySelector('#watched_listings_link').addEventListener('click', () => {
-    chrome.runtime.sendMessage({
-        target: 'SERVICE_WORKER',
-        type: 'POPUP_MESSAGE',
-        data: {
-            action: 'SHOW_WATCHED_LISTINGS',
-        },
-    })
+    chrome.runtime.sendMessage({ action: 'SHOW_WATCHED_LISTINGS' })
 })
 
 // listen for test outbid notification link click
 document.querySelector('#test_outbid_notification').addEventListener('click', () => {
-    chrome.runtime.sendMessage({
-        target: 'SERVICE_WORKER',
-        type: 'POPUP_MESSAGE',
-        data: {
-            action: 'TEST_OUTBID_NOTIFICATION',
-        },
-    })
+    chrome.runtime.sendMessage({ action: 'TEST_OUTBID_NOTIFICATION' })
 })
 
 // listen for test item won notification link click
 document.querySelector('#test_item_won_notification').addEventListener('click', () => {
-    chrome.runtime.sendMessage({
-        target: 'SERVICE_WORKER',
-        type: 'POPUP_MESSAGE',
-        data: {
-            action: 'TEST_ITEM_WON_NOTIFICATION',
-        },
-    })
+    chrome.runtime.sendMessage({ action: 'TEST_ITEM_WON_NOTIFICATION' })
 })

@@ -1,6 +1,6 @@
 {
     "name": "KotN Helper",
-    "version": "1.0",
+    "version": "1.2",
     "manifest_version": 3,
     "icons": {
         "16": "images/icon-16.jpeg",
@@ -25,18 +25,18 @@
     "content_scripts": [
         {
             "matches": [
-                "https://*.kotnauction.com/listings/watched*"
+                "https://*.kotnauction.com/auctions/*"
             ],
             "js": [
-                "content_script.js"
+                "content_script_auctions.js"
             ]
         },
         {
             "matches": [
-                "https://*.kotnauction.com/auctions/*"
+                "https://*.kotnauction.com/listings/watched*"
             ],
             "js": [
-                "content_script_other.js"
+                "content_script_watched.js"
             ]
         }
     ],
@@ -46,9 +46,10 @@
                 "*://*/*"
             ],
             "resources": [
-                "inject.js",
-                "inject.css",
-                "favicon.ico",
+                "inject_auctions.js",
+                "inject_auctions.css",
+                "inject_watched.js",
+                "inject_watched.css",
                 "audio/beep.mp3",
                 "audio/yay.mp3"
             ]
