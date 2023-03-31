@@ -14,6 +14,7 @@ const data = {
     watchedListings: {},
 }
 
+// basic extension utility functions
 const utilities = {
     updateBadge: (text, color) => {
         chrome.action.setBadgeText({ text })
@@ -91,6 +92,7 @@ const utilities = {
     },
 }
 
+// kotn tab functions
 const tabs = {
     openWatchedListings: () => {
         utilities.openOrFocusTab(`${data.urls.watchedListings}*`, `${data.urls.watchedListings}?per_page=100`)
@@ -105,6 +107,7 @@ const tabs = {
     },
 }
 
+// kotn notification functions
 const notifications = {
     endingSoonButWinning: (mediums, listingId, currentBid) => {
         const listingName = listingId == 'TEST' ? 'TEST ITEM ' : (data.watchedListings[listingId].name || '')
@@ -219,6 +222,7 @@ const notifications = {
     },
 }
 
+// kotn apis
 const apis = {
     call: async (url, method = 'GET', data) => {
         const headers = {
@@ -246,6 +250,7 @@ const apis = {
     refresh: (ids) => apis.call(`${urls.base}/listings/refresh`, 'POST', { ids }),
 }
 
+// webhook functions
 const webhooks = {
     call: async (data) => {
         const storageKey = 'options.webhooks.urls'
@@ -261,9 +266,10 @@ const webhooks = {
 
             fetch(url, { headers, body, method: 'POST' })
         })
-    }
+    },
 }
 
+// extension message handlers
 const messageHandlers = {
     SHOW_WATCHED_LISTINGS: (args, sender) => {
         tabs.openWatchedListings()
@@ -509,7 +515,8 @@ const messageHandlers = {
     },
 }
 
-const notificationHandlers = {
+// browser notification handlers
+const browserNotificationHandlers = {
     INSTALLED: () => {
         tabs.openWatchedListings()
     },
@@ -597,7 +604,7 @@ const notificationHandlers = {
     }
 }
 
-// installation handler
+// listen for extension installation
 chrome.runtime.onInstalled.addListener(async ({ reason, version }) => {
     if (reason === chrome.runtime.OnInstalledReason.INSTALL) {
         utilities.playSound('yay')
@@ -606,7 +613,7 @@ chrome.runtime.onInstalled.addListener(async ({ reason, version }) => {
     }
 })
 
-// extension message handler
+// listen for extension messages
 chrome.runtime.onMessage.addListener((message, sender) => {
     console.log(message, sender?.tab?.id)
 
@@ -615,25 +622,25 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     }
 })
 
-// notification click handler
+// listen for browser notification clicks
 chrome.notifications.onClicked.addListener((id) => {
     const [ type, ...details ] = id.split('.')
 
-    if (type in notificationHandlers) {
-        notificationHandlers[type](-1, details)
+    if (type in browserNotificationHandlers) {
+        browserNotificationHandlers[type](-1, details)
     }
 })
 
-// notification button click handler
+// listen for browser notification button clicks
 chrome.notifications.onButtonClicked.addListener((id, index) => {
     const [ type, ...details ] = id.split('.')
 
-    if (type in notificationHandlers) {
-        notificationHandlers[type](index, details)
+    if (type in browserNotificationHandlers) {
+        browserNotificationHandlers[type](index, details)
     }
 })
 
-// tab updated handler
+// listen for tab updates
 chrome.tabs.onUpdated.addListener(( updatedTabId, changeInfo, tab ) => {
     const commsTabId = data.watchedListingsTabIds[0]
 
@@ -663,7 +670,7 @@ chrome.tabs.onUpdated.addListener(( updatedTabId, changeInfo, tab ) => {
     }
 })
 
-// tab closed handler
+// listen for tab closings
 chrome.tabs.onRemoved.addListener(( removedTabId ) => {
     const commsTabId = data.watchedListingsTabIds[0]
 

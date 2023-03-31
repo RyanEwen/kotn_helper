@@ -6,6 +6,7 @@ link.rel = 'stylesheet'
 link.href = chrome.runtime.getURL('inject_watched.css')
 document.getElementsByTagName('head')[0].appendChild(link)
 
+// extension message handlers
 const messageHandlers = {
     'ENABLE_COMMS': (args) => {
         // listen for postMessages from inject_watched.js
@@ -32,7 +33,7 @@ const messageHandlers = {
     },
 }
 
-// extension message handler
+// listen for extension messages
 chrome.runtime.onMessage.addListener((message) => {
     if (message.action in messageHandlers) {
         messageHandlers[message.action](message.args)
