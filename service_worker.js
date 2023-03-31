@@ -141,7 +141,7 @@ async function notifyEndingSoonAndLosing(mediums, listingId, currentBid, nextBid
         makeWebhookCalls({
             event: 'listing_ending_soon_losing',
             title: "Listing ending soon!",
-            message: `$${currentBid} (you) - ${listingName}`,
+            message: `$${currentBid} - ${listingName}`,
             listingUrl: `${data.urls.listings}/${listingId}`,
             listingName,
             currentBid,
@@ -168,7 +168,7 @@ async function notifyOutbid(mediums, listingId, previousBid, currentBid, nextBid
         makeWebhookCalls({
             event: 'outbid',
             title: "You've been outbid!",
-            message: `$${currentBid} (you) - ${listingName}`,
+            message: `$${currentBid} - ${listingName}`,
             listingUrl: `${data.urls.listings}/${listingId}`,
             listingName,
             previousBid,
