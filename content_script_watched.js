@@ -1,5 +1,11 @@
 console.log('KotN Helper - Watched Listings')
 
+// create style tag that adds inject_watched.css into the page
+const link = document.createElement('link')
+link.rel = 'stylesheet'
+link.href = chrome.runtime.getURL('inject_watched.css')
+document.getElementsByTagName('head')[0].appendChild(link)
+
 const actionHandlers = {
     'ENABLE': (args) => {
         // listen for postMessages from inject_watched.js
@@ -22,12 +28,6 @@ const actionHandlers = {
         script.src = chrome.runtime.getURL('inject_watched.js')
         document.getElementsByTagName('head')[0].appendChild(script)
 
-        // create style tag that adds inject_watched.css into the page
-        const link = document.createElement('link')
-        link.rel = 'stylesheet'
-        link.href = chrome.runtime.getURL('inject_watched.css')
-        document.getElementsByTagName('head')[0].appendChild(link)
-
         console.log('KotN Helper - Comms enabled via this tab')
     },
 }
@@ -39,4 +39,5 @@ chrome.runtime.onMessage.addListener((message) => {
     }
 })
 
+// tell the service worker that this tab is ready
 chrome.runtime.sendMessage({ action: 'WATCHED_LISTINGS_OPENED' })
