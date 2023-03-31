@@ -38,11 +38,13 @@ const utilities = {
         }
     },
 
-    reloadTab: async (urlMatch) => {
+    reloadTabs: async (urlMatch) => {
         const tabs = await chrome.tabs.query({ url: urlMatch })
 
         if (tabs.length) {
-            chrome.tabs.reload(tabs[0].id)
+            tabs.forEach((tab) => {
+                chrome.tabs.reload(tabs.id)
+            })
         }
     },
 
@@ -94,18 +96,43 @@ const utilities = {
 }
 
 // kotn tab functions
-const tabs = {
-    openWatchedListings: () => {
+const listings = {
+    openWatchedListingsTab: () => {
         utilities.focusOrOpenTab(`${data.urls.watchedListings}*`, data.urls.watchedListings)
     },
 
-    reloadWatchedListings: () => {
-        utilities.reloadTab(`${data.urls.watchedListings}*`)
+    reloadWatchedListingsTabs: () => {
+        utilities.reloadTabs(`${data.urls.watchedListings}*`)
     },
 
-    openListing: (id) => {
+    openListingTab: (id) => {
         utilities.focusOrOpenTab(`${data.urls.listings}/${id}*`, `${data.urls.listings}/${id}`)
     },
+
+    checkIfFriendsBidding: async (listing, tabId) => {
+        const storageKey = 'options.friends.names'
+        const storedData = await chrome.storage.sync.get(storageKey)
+        const friendsSetting = storedData[storageKey] || ''
+        const friends = friendsSetting.split("\n")
+
+        const friendsBids = (listing.bids || [])
+            .filter((bid) => friends.includes(bid.bidder))
+
+        // only send to specific tab if requested by a specific tab
+        const tabIds = tabId ? [tabId] : data.watchedListingsTabIds
+
+        if (friendsBids.length) {
+            tabIds.forEach((tabId) => {
+                chrome.tabs.sendMessage(tabId, {
+                    action: 'HIGHLIGHT_FRIEND_LISTING',
+                    args: {
+                        listingId: listing.id,
+                        friendsBids,
+                    },
+                })
+            })
+        }
+    }
 }
 
 // kotn notification functions
@@ -225,7 +252,7 @@ const notifications = {
 
 // kotn apis
 const apis = {
-    call: async (url, method = 'GET', data) => {
+    call: async (url, method = 'GET', data, asJson = true) => {
         const headers = {
             'X-XSRF-TOKEN': await utilities.readCookie('XSRF-TOKEN'),
             'Accept': 'application/json, text/plain, */*',
@@ -239,16 +266,37 @@ const apis = {
 
         const request = await fetch(url, { headers, body, method })
 
-        return request.json()
+        if (asJson) {
+            return request.json()
+        } else {
+            return request.text()
+        }
     },
 
-    bid: (id, bid) => apis.call(`${data.urls.base}/listings/${id}/bid`, 'POST', { bid }),
+    scrapeLine: async (url, searchText) => {
+        const page = await apis.call(url, 'GET', undefined, false)
 
-    watch: (id) => apis.call(`${data.urls.base}/listings/${id}/watch`, 'POST'),
+        return page
+            ?.split("\n")
+            ?.find((line) => line.includes(searchText))
+            ?.trim()
+    },
 
-    ignore: (id) => apis.call(`${data.urls.base}/listings/${id}/ignore`, 'POST'),
+    bid: (listingId, bid) => apis.call(`${data.urls.base}/listings/${listingId}/bid`, 'POST', { bid }),
 
-    refresh: (ids) => apis.call(`${data.urls.base}/listings/refresh`, 'POST', { ids }),
+    watch: (listingId) => apis.call(`${data.urls.base}/listings/${listingId}/watch`, 'POST'),
+
+    ignore: (listingId) => apis.call(`${data.urls.base}/listings/${listingId}/ignore`, 'POST'),
+
+    refresh: (listingIds) => apis.call(`${data.urls.base}/listings/refresh`, 'POST', { ids: listingIds }),
+
+    getBids: async (listingId) => {
+        const searchText = 'var initialBids = '
+        const line = await apis.scrapeLine(`${data.urls.base}/listings/${listingId}`, searchText)
+        const value = line.substr(0, line.length - 1).replace(searchText, '')
+
+        return JSON.parse(value)
+    },
 }
 
 // webhook functions
@@ -273,7 +321,7 @@ const webhooks = {
 // extension message handlers
 const messageHandlers = {
     SHOW_WATCHED_LISTINGS: (args, sender) => {
-        tabs.openWatchedListings()
+        listings.openWatchedListingsTab()
     },
 
     TEST_ENDING_WINNING_NOTIFICATION: (args, sender) => {
@@ -290,6 +338,50 @@ const messageHandlers = {
 
     TEST_ITEM_WON_NOTIFICATION: (args, sender) => {
         notifications.itemWon({ sound: true, webhooks: true, notification: true}, 'TEST')
+    },
+
+    AUCTIONS_LOADED: async (args, sender) => {
+        // check if friends are bidding on items (limit to one request at a time)
+        setTimeout(async () => {
+            const queue = {
+                todo: Object.keys(args.listings),
+                processing: [],
+                completed: [],
+            }
+
+            function processNextBatch() {
+                if (queue.processing.length < 10) {
+                    const idsToProcess = queue.todo.slice(0, 5 - queue.processing.length)
+
+                    idsToProcess.forEach(async (listingIdToProcess) => {
+                        // move id from waiting to inProgress
+                        queue.todo = queue.todo.filter((listingId) => listingId != listingIdToProcess)
+                        queue.processing.push(listingIdToProcess)
+
+                        // check the listing
+                        const listing = args.listings[listingIdToProcess]
+                        listing.bids = await apis.getBids(listingIdToProcess)
+                        listings.checkIfFriendsBidding(listing, sender.tab.id)
+
+                        // move id from inProgress to complete
+                        queue.processing = queue.processing.filter((listingId) => listingId != listingIdToProcess)
+                        queue.completed.push(listingIdToProcess)
+
+                        processNextBatch()
+                    })
+                }
+            }
+
+            processNextBatch()
+
+            // for (const listingId in args.listings) {
+            //     const listing = args.listings[listingId]
+
+            //     listing.bids = await apis.getBids(listingId)
+
+            //     listings.checkIfFriendsBidding(listing, sender.tab.id)
+            // }
+        })
     },
 
     WATCHED_LISTINGS_OPENED: async (args, sender) => {
@@ -311,6 +403,11 @@ const messageHandlers = {
                 chrome.tabs.sendMessage(sender.tab.id, { action: 'ENABLE_COMMS' })
             }
         }
+
+        // let the new tab know about friend bids
+        Object.entries(data.watchedListings).forEach(([listingId, listing]) => {
+            listings.checkIfFriendsBidding(listing, sender.tab.id)
+        })
     },
 
     WATCHED_LISTINGS_CONNECTED: async (args, sender) => {
@@ -324,6 +421,48 @@ const messageHandlers = {
         data.userId = args.userId
         data.username = args.username
         data.watchedListings = args.watchedListings
+
+        // check if friends are bidding on watched items (limit to one request at a time)
+        setTimeout(async () => {
+            const queue = {
+                todo: Object.keys(data.watchedListings),
+                processing: [],
+                completed: [],
+            }
+
+            function processNextBatch() {
+                if (queue.processing.length < 10) {
+                    const idsToProcess = queue.todo.slice(0, 5 - queue.processing.length)
+
+                    idsToProcess.forEach(async (listingIdToProcess) => {
+                        // move id from waiting to inProgress
+                        queue.todo = queue.todo.filter((listingId) => listingId != listingIdToProcess)
+                        queue.processing.push(listingIdToProcess)
+
+                        // check the listing
+                        const listing = data.watchedListings[listingIdToProcess]
+                        listing.bids = await apis.getBids(listingIdToProcess)
+                        listings.checkIfFriendsBidding(listing)
+
+                        // move id from inProgress to complete
+                        queue.processing = queue.processing.filter((listingId) => listingId != listingIdToProcess)
+                        queue.completed.push(listingIdToProcess)
+
+                        processNextBatch()
+                    })
+                }
+            }
+
+            processNextBatch()
+
+            // for (const listingId in data.watchedListings) {
+            //     const listing = data.watchedListings[listingId]
+
+            //     listing.bids = await apis.getBids(listingId)
+
+            //     listings.checkIfFriendsBidding(listing)
+            // }
+        })
 
         // create new listing ending timeouts
         Object.entries(data.watchedListings).forEach(([listingId, listing]) => {
@@ -407,6 +546,23 @@ const messageHandlers = {
 
     BID_PLACED: async (args, sender) => {
         // eg: { "id": 13841801, "listing_id": 974702, "bid": 3, "bidder": "yourguymike", "created_at": "2023-03-21 12:30:59", "listing_end": "2023-03-26 16:00:00" }
+
+        // if bid is on a watched listing
+        if (args.listing_id in data.watchedListings) {
+            // only check for friends bids if we already have the bid list
+            if ('bids' in data.watchedListings[args.listing_id]) {
+                data.watchedListings[args.listing_id].bids.push({
+                    id: args.id,
+                    bid: args.bid,
+                    bidder: args.bidder,
+                    created_at: args.created_at,
+                })
+
+                listings.checkIfFriendsBidding(data.watchedListings[args.listing_id])
+            }
+        }
+
+        // TODO send to auction pages as well
     },
 
     WATCH_STATE_CHANGED: async (args, sender) => {
@@ -415,7 +571,7 @@ const messageHandlers = {
 
         // refresh watched listings page if the item isn't on it
         if (args.listing_id in data.watchedListings == false) {
-            tabs.reloadWatchedListings()
+            listings.reloadWatchedListingsTabs()
         }
     },
 
@@ -519,7 +675,7 @@ const messageHandlers = {
 // browser notification handlers
 const browserNotificationHandlers = {
     INSTALLED: () => {
-        tabs.openWatchedListings()
+        listings.openWatchedListingsTab()
     },
 
     ENDING_WINNING: (buttonIndex, [ listingId ]) => {
@@ -529,7 +685,7 @@ const browserNotificationHandlers = {
             // view button
             case 0:
                 // tabs.openListing(listingId)
-                tabs.openWatchedListings()
+                listings.openWatchedListingsTab()
             break
         }
     },
@@ -539,7 +695,7 @@ const browserNotificationHandlers = {
             // no button
             case -1:
                 // tabs.openListing(listingId)
-                tabs.openWatchedListings()
+                listings.openWatchedListingsTab()
             break
 
             // unwatch button
@@ -567,7 +723,7 @@ const browserNotificationHandlers = {
             // no button
             case -1:
                 // tabs.openListing(listingId)
-                tabs.openWatchedListings()
+                listings.openWatchedListingsTab()
             break
 
             // unwatch button
@@ -599,7 +755,7 @@ const browserNotificationHandlers = {
 
             // view button
             case 0:
-                tabs.openListing(listingId)
+                listings.openListingTab(listingId)
             break
         }
     }
