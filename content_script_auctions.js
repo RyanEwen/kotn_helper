@@ -15,7 +15,7 @@ const messageHandlers = {
             <details>
                 <summary>Friends Bidding</summary>
                 <ul>
-                    ${args.friendsBids.map((bid) => `<li>${bid.bidder} ($${bid.bid})</li>`)}
+                    ${args.friendsBids.map((bid) => `<li>${bid.bidder} ($${bid.bid})</li>`).join('')}
                 </ul>
             </details>
         `
