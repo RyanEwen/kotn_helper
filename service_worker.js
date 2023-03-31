@@ -114,7 +114,8 @@ async function notifyEndingSoonButWinning(mediums, listingId, currentBid) {
     if (mediums.webhooks) {
         makeWebhookCalls({
             event: 'listing_ending_soon_winning',
-            text: "Listing ending soon!",
+            title: "Listing ending soon!",
+            message: `$${currentBid} (you) - ${listingName}`,
             listingUrl: `${data.urls.listings}/${listingId}`,
             listingName,
             currentBid,
@@ -139,7 +140,8 @@ async function notifyEndingSoonAndLosing(mediums, listingId, currentBid, nextBid
     if (mediums.webhooks) {
         makeWebhookCalls({
             event: 'listing_ending_soon_losing',
-            text: "Listing ending soon!",
+            title: "Listing ending soon!",
+            message: `$${currentBid} (you) - ${listingName}`,
             listingUrl: `${data.urls.listings}/${listingId}`,
             listingName,
             currentBid,
@@ -165,7 +167,8 @@ async function notifyOutbid(mediums, listingId, previousBid, currentBid, nextBid
     if (mediums.webhooks) {
         makeWebhookCalls({
             event: 'outbid',
-            text: "You've been outbid!",
+            title: "You've been outbid!",
+            message: `$${currentBid} (you) - ${listingName}`,
             listingUrl: `${data.urls.listings}/${listingId}`,
             listingName,
             previousBid,
@@ -191,7 +194,8 @@ async function notifyItemWon(mediums, listingId) {
     if (mediums.webhooks) {
         makeWebhookCalls({
             event: 'item_won',
-            text: "You've won an item!",
+            title: "Item Won!",
+            message: listingName,
             listingUrl: `${data.urls.listings}/${listingId}`,
             listingName,
         })
@@ -234,15 +238,13 @@ async function makeWebhookCalls(data) {
     const urls = (storedData[storageKey] || '').split("\n")
 
     urls.forEach((url) => {
-        const headers = {}
-
-        if (data) {
-            headers['Content-Type'] = 'application/json'
+        const headers = {
+            'Content-Type': 'application/json'
         }
 
         const body = data ? JSON.stringify(data) : undefined
 
-        fetch(url, { headers, body, method: 'POST', mode: 'no-cors' })
+        fetch(url, { headers, body, method: 'POST' })
     })
 }
 
