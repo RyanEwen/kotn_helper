@@ -106,29 +106,6 @@ const tabs = {
     openListing: (id) => {
         utilities.focusOrOpenTab(`${data.urls.listings}/${id}*`, `${data.urls.listings}/${id}`)
     },
-
-    enforcePerPageSetting: async (tabId, tabUrl) => {
-        // only care about auctions and watched listings
-        if (tabUrl.includes(data.urls.auctions) || tabUrl.includes(data.urls.watchedListings)) {
-            const storageKey = 'options.tweaks.itemsPerPage'
-            const storedData = await chrome.storage.sync.get(storageKey)
-            const perPageSetting = storedData[storageKey] || 'default'
-
-            if (perPageSetting == 'default') {
-                return
-            }
-
-            const url = new URL(tabUrl)
-
-            if (url.searchParams.get('per_page') != perPageSetting) {
-                url.searchParams.set('per_page', perPageSetting)
-
-                await chrome.tabs.update(tabId, {
-                    url: url.href,
-                })
-            }
-        }
-    },
 }
 
 // kotn notification functions
@@ -337,7 +314,7 @@ const messageHandlers = {
     },
 
     WATCHED_LISTINGS_CONNECTED: async (args, sender) => {
-        utilities.updateBadge('OK', 'green')
+        utilities.updateBadge('ON', 'green')
 
         // clear old listing ending timeouts
         Object.entries(data.watchedListings).forEach(([listingId, listing]) => {
@@ -664,14 +641,34 @@ chrome.notifications.onButtonClicked.addListener((id, index) => {
     }
 })
 
+// listen for browser navigations
+chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
+    // try to enforce per-page setting
+    const url = new URL(details.url)
+    const storageKey = 'options.tweaks.itemsPerPage'
+    const storedData = await chrome.storage.sync.get(storageKey)
+    const perPageSetting = storedData[storageKey] || 'default'
+
+    // don't adjust if no preference or if user has chosen another option on the page
+    if (perPageSetting == 'default' || url.searchParams.has('per_page')) {
+        return
+    }
+
+    url.searchParams.set('per_page', perPageSetting)
+
+    await chrome.tabs.update(details.tabId, {
+        url: url.href,
+    })
+}, {
+    url: [
+        { urlMatches: `${data.urls.auctions}*` },
+        { urlMatches: `${data.urls.watchedListings}*` },
+    ],
+})
+
 // listen for tab updates
 chrome.tabs.onUpdated.addListener(async ( updatedTabId, changeInfo, tab ) => {
     const commsTabId = data.watchedListingsTabIds[0]
-
-    // try to enforce per-page setting
-    if ('url' in changeInfo) {
-        await tabs.enforcePerPageSetting(updatedTabId, changeInfo.url)
-    }
 
     // if a watched listings tab has navigated elsewhere
     if (data.watchedListingsTabIds.includes(updatedTabId) && 'url' in changeInfo && changeInfo.url.includes(data.urls.watchedListings) == false) {
