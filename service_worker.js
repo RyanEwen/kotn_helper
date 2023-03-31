@@ -5,6 +5,7 @@ import moment from '/lib/moment.js';
 const data = {
     urls: {
         base: 'https://kotnauction.com',
+        auctions: 'https://kotnauction.com/auctions',
         listings: 'https://kotnauction.com/listings',
         watchedListings: 'https://kotnauction.com/listings/watched',
     },
@@ -24,7 +25,7 @@ const utilities = {
         }
     },
 
-    openOrFocusTab: async (urlMatch, url) => {
+    focusOrOpenTab: async (urlMatch, url) => {
         const tabs = await chrome.tabs.query({ url: urlMatch })
 
         if (tabs.length) {
@@ -46,7 +47,7 @@ const utilities = {
     },
 
     readCookie: async (name) => {
-        const cookie = await chrome.cookies.get({ name, url: urls.base })
+        const cookie = await chrome.cookies.get({ name, url: data.urls.base })
 
         return decodeURIComponent(cookie.value)
     },
@@ -95,7 +96,7 @@ const utilities = {
 // kotn tab functions
 const tabs = {
     openWatchedListings: () => {
-        utilities.openOrFocusTab(`${data.urls.watchedListings}*`, `${data.urls.watchedListings}?per_page=100`)
+        utilities.focusOrOpenTab(`${data.urls.watchedListings}*`, data.urls.watchedListings)
     },
 
     reloadWatchedListings: () => {
@@ -103,7 +104,30 @@ const tabs = {
     },
 
     openListing: (id) => {
-        utilities.openOrFocusTab(`${data.urls.listings}/${id}*`, `${data.urls.listings}/${id}`)
+        utilities.focusOrOpenTab(`${data.urls.listings}/${id}*`, `${data.urls.listings}/${id}`)
+    },
+
+    enforcePerPageSetting: async (tabId, tabUrl) => {
+        // only care about auctions and watched listings
+        if (tabUrl.includes(data.urls.auctions) || tabUrl.includes(data.urls.watchedListings)) {
+            const storageKey = 'options.tweaks.itemsPerPage'
+            const storedData = await chrome.storage.sync.get(storageKey)
+            const perPageSetting = storedData[storageKey] || 'default'
+
+            if (perPageSetting == 'default') {
+                return
+            }
+
+            const url = new URL(tabUrl)
+
+            if (url.searchParams.get('per_page') != perPageSetting) {
+                url.searchParams.set('per_page', perPageSetting)
+
+                await chrome.tabs.update(tabId, {
+                    url: url.href,
+                })
+            }
+        }
     },
 }
 
@@ -241,13 +265,13 @@ const apis = {
         return request.json()
     },
 
-    bid: (id, bid) => apis.call(`${urls.base}/listings/${id}/bid`, 'POST', { bid }),
+    bid: (id, bid) => apis.call(`${data.urls.base}/listings/${id}/bid`, 'POST', { bid }),
 
-    watch: (id) => apis.call(`${urls.base}/listings/${id}/watch`, 'POST'),
+    watch: (id) => apis.call(`${data.urls.base}/listings/${id}/watch`, 'POST'),
 
-    ignore: (id) => apis.call(`${urls.base}/listings/${id}/ignore`, 'POST'),
+    ignore: (id) => apis.call(`${data.urls.base}/listings/${id}/ignore`, 'POST'),
 
-    refresh: (ids) => apis.call(`${urls.base}/listings/refresh`, 'POST', { ids }),
+    refresh: (ids) => apis.call(`${data.urls.base}/listings/refresh`, 'POST', { ids }),
 }
 
 // webhook functions
@@ -641,11 +665,16 @@ chrome.notifications.onButtonClicked.addListener((id, index) => {
 })
 
 // listen for tab updates
-chrome.tabs.onUpdated.addListener(( updatedTabId, changeInfo, tab ) => {
+chrome.tabs.onUpdated.addListener(async ( updatedTabId, changeInfo, tab ) => {
     const commsTabId = data.watchedListingsTabIds[0]
 
+    // try to enforce per-page setting
+    if ('url' in changeInfo) {
+        await tabs.enforcePerPageSetting(updatedTabId, changeInfo.url)
+    }
+
     // if a watched listings tab has navigated elsewhere
-    if (data.watchedListingsTabIds.includes(updatedTabId) && 'url' in changeInfo && changeInfo.url.includes(urls.watchedListings) == false) {
+    if (data.watchedListingsTabIds.includes(updatedTabId) && 'url' in changeInfo && changeInfo.url.includes(data.urls.watchedListings) == false) {
         // remove the tab id from the list
         data.watchedListingsTabIds = data.watchedListingsTabIds.filter((tabId) => tabId != updatedTabId)
 
@@ -697,4 +726,5 @@ chrome.tabs.onRemoved.addListener(( removedTabId ) => {
     }
 })
 
+// clear badge on startup
 utilities.updateBadge('')
