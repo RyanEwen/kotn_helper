@@ -253,6 +253,14 @@ const actionHandlers = {
         openWatchedListings()
     },
 
+    TEST_ENDING_WINNING_NOTIFICATION: (args, sender) => {
+        notifyEndingSoonButWinning({ sound: true, webhooks: true, notification: true}, 'TEST', 5)
+    },
+
+    TEST_ENDING_LOSING_NOTIFICATION: (args, sender) => {
+        notifyEndingSoonAndLosing({ sound: true, webhooks: true, notification: true}, 'TEST', 5, 10)
+    },
+
     TEST_OUTBID_NOTIFICATION: (args, sender) => {
         notifyOutbid({ sound: true, webhooks: true, notification: true}, 'TEST', 5, 10, 15)
     },
@@ -514,11 +522,19 @@ const notificationHandlers = {
 
             // unwatch button
             case 0:
+                if (listingId == 'TEST') {
+                    break
+                }
+
                 ApiCalls.ignore(listingId)
             break
 
             // bid button
             case 1:
+                if (listingId == 'TEST') {
+                    break
+                }
+
                 ApiCalls.bid(listingId, nextBid)
             break
         }
@@ -534,11 +550,19 @@ const notificationHandlers = {
 
             // unwatch button
             case 0:
+                if (listingId == 'TEST') {
+                    break
+                }
+
                 ApiCalls.ignore(listingId)
             break
 
             // bid button
             case 1:
+                if (listingId == 'TEST') {
+                    break
+                }
+
                 ApiCalls.bid(listingId, nextBid)
             break
         }

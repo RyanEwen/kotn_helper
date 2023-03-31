@@ -22,6 +22,16 @@ document.querySelector('#watched_listings_link').addEventListener('click', () =>
     chrome.runtime.sendMessage({ action: 'SHOW_WATCHED_LISTINGS' })
 })
 
+// listen for test ending but winning notification link click
+document.querySelector('#test_ending_winning_notification').addEventListener('click', () => {
+    chrome.runtime.sendMessage({ action: 'TEST_ENDING_WINNING_NOTIFICATION' })
+})
+
+// listen for test ending and losing notification link click
+document.querySelector('#test_ending_losing_notification').addEventListener('click', () => {
+    chrome.runtime.sendMessage({ action: 'TEST_ENDING_LOSING_NOTIFICATION' })
+})
+
 // listen for test outbid notification link click
 document.querySelector('#test_outbid_notification').addEventListener('click', () => {
     chrome.runtime.sendMessage({ action: 'TEST_OUTBID_NOTIFICATION' })
