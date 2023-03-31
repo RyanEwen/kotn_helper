@@ -7,10 +7,10 @@ link.href = chrome.runtime.getURL('inject_watched.css')
 document.getElementsByTagName('head')[0].appendChild(link)
 
 const actionHandlers = {
-    'ENABLE': (args) => {
+    'ENABLE_COMMS': (args) => {
         // listen for postMessages from inject_watched.js
         window.addEventListener('message', (event) => {
-            if (event.data.from != 'WATCHED_LISTINGS') {
+            if (event.data.from != 'WATCHED_LISTINGS_INJECT_SCRIPT') {
                 return
             }
 

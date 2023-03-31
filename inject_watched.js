@@ -1,6 +1,6 @@
 (function() {
-    function forward(action, args) {
-        window.postMessage({ from: 'WATCHED_LISTINGS', message: { action, args } })
+    function forwardToContentScript(action, args) {
+        window.postMessage({ from: 'WATCHED_LISTINGS_INJECT_SCRIPT', message: { action, args } })
     }
 
     // create an object similar to listingData but with the item name added-in (scraped from DOM)
@@ -11,15 +11,15 @@
     }))
 
     // push some basic user info and watched listing names
-    forward('WATCHED_LISTINGS_CONNECTED', { userId, username, watchedListings })
+    forwardToContentScript('WATCHED_LISTINGS_CONNECTED', { userId, username, watchedListings })
 
     // bind to socketio public channel
     window.Echo.channel('public')
-        .listen('BidPlaced', (message) => forward('BID_PLACED', message))
+        .listen('BidPlaced', (message) => forwardToContentScript('BID_PLACED', message))
 
     // bind to socketio user channel
     window.Echo.private(`user.${authUserId}`)
-        .listen('WatchStateChanged', (message) => forward('WATCH_STATE_CHANGED', message))
-        .listen('BidderOutbid', (message) => forward('OUTBID', message))
-        .listen('ItemWon', (message) => forward('ITEM_WON', message))
+        .listen('WatchStateChanged', (message) => forwardToContentScript('WATCH_STATE_CHANGED', message))
+        .listen('BidderOutbid', (message) => forwardToContentScript('OUTBID', message))
+        .listen('ItemWon', (message) => forwardToContentScript('ITEM_WON', message))
 }())
