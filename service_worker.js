@@ -104,8 +104,9 @@ async function notifyEndingSoonButWinning(mediums, listingId, currentBid) {
         ])
     }
 
-    if (mediums.ifttt) {
-        makeIftttWebhookCall('kotn_ending_winning', {
+    if (mediums.webhooks) {
+        makeWebhookCalls({
+            event: 'listing_ending_soon_winning',
             text: "Listing ending soon!",
             listingUrl: `${data.urls.listings}/${listingId}`,
             listingName,
@@ -128,8 +129,9 @@ async function notifyEndingSoonAndLosing(mediums, listingId, currentBid, nextBid
         ])
     }
 
-    if (mediums.ifttt) {
-        makeIftttWebhookCall('kotn_ending_losing', {
+    if (mediums.webhooks) {
+        makeWebhookCalls({
+            event: 'listing_ending_soon_losing',
             text: "Listing ending soon!",
             listingUrl: `${data.urls.listings}/${listingId}`,
             listingName,
@@ -153,8 +155,9 @@ async function notifyOutbid(mediums, listingId, previousBid, currentBid, nextBid
         ])
     }
 
-    if (mediums.ifttt) {
-        makeIftttWebhookCall('kotn_outbid', {
+    if (mediums.webhooks) {
+        makeWebhookCalls({
+            event: 'outbid',
             text: "You've been outbid!",
             listingUrl: `${data.urls.listings}/${listingId}`,
             listingName,
@@ -178,8 +181,9 @@ async function notifyItemWon(mediums, listingId) {
         ])
     }
 
-    if (mediums.ifttt) {
-        makeIftttWebhookCall('kotn_item_won', {
+    if (mediums.webhooks) {
+        makeWebhookCalls({
+            event: 'item_won',
             text: "You've won an item!",
             listingUrl: `${data.urls.listings}/${listingId}`,
             listingName,
@@ -217,24 +221,22 @@ const ApiCalls = {
     refresh: (ids) => makeApiCall('https://kotnauction.com/listings/refresh', 'POST', { ids }),
 }
 
-async function makeIftttWebhookCall(eventName, data) {
-    const storageKey = 'options.ifttt.webhookKey'
+async function makeWebhookCalls(data) {
+    const storageKey = 'options.webhooks.urls'
     const storedData = await chrome.storage.sync.get(storageKey)
-    const key = storedData[storageKey]
+    const urls = (storedData[storageKey] || '').split("\n")
 
-    if (!key) {
-        return
-    }
+    urls.forEach((url) => {
+        const headers = {}
 
-    const headers = {}
+        if (data) {
+            headers['Content-Type'] = 'application/json'
+        }
 
-    if (data) {
-        headers['Content-Type'] = 'application/json'
-    }
+        const body = data ? JSON.stringify(data) : undefined
 
-    const body = data ? JSON.stringify(data) : undefined
-
-    await fetch(`https://maker.ifttt.com/trigger/${eventName}/json/with/key/${key}`, { headers, body, method: 'POST', mode: 'no-cors' })
+        fetch(url, { headers, body, method: 'POST', mode: 'no-cors' })
+    })
 }
 
 const actionHandlers = {
@@ -243,11 +245,11 @@ const actionHandlers = {
     },
 
     TEST_OUTBID_NOTIFICATION: (args, sender) => {
-        notifyOutbid({ sound: true, ifttt: true, notification: true}, 'TEST', 5, 10, 15)
+        notifyOutbid({ sound: true, webhooks: true, notification: true}, 'TEST', 5, 10, 15)
     },
 
     TEST_ITEM_WON_NOTIFICATION: (args, sender) => {
-        notifyItemWon({ sound: true, ifttt: true, notification: true}, 'TEST')
+        notifyItemWon({ sound: true, webhooks: true, notification: true}, 'TEST')
     },
 
     WATCHED_LISTINGS_OPENED: async (args, sender) => {
@@ -325,15 +327,15 @@ const actionHandlers = {
                     },
                 }
 
-                const iftttActions = {
+                const webhooksActions = {
                     'disabled': async () => {
                         return
                     },
                     'always': async () => {
                         if (detail[listingId].bidder == data.username) {
-                            notifyEndingSoonButWinning({ ifttt: true }, listingId, detail[listingId].bid)
+                            notifyEndingSoonButWinning({ webhooks: true }, listingId, detail[listingId].bid)
                         } else {
-                            notifyEndingSoonAndLosing({ ifttt: true }, listingId, detail[listingId].bid, detail[listingId].bid + detail[listingId].bid_increment)
+                            notifyEndingSoonAndLosing({ webhooks: true }, listingId, detail[listingId].bid, detail[listingId].bid + detail[listingId].bid_increment)
                         }
                     },
                     'unlessWinning': async () => {
@@ -341,23 +343,23 @@ const actionHandlers = {
                             return
                         }
 
-                        notifyEndingSoonAndLosing({ ifttt: true }, listingId, detail[listingId].bid, detail[listingId].bid + detail[listingId].bid_increment)
+                        notifyEndingSoonAndLosing({ webhooks: true }, listingId, detail[listingId].bid, detail[listingId].bid + detail[listingId].bid_increment)
                     },
                 }
 
-                const storageKeys = ['options.notifications.ending', 'options.ifttt.ending']
+                const storageKeys = ['options.notifications.ending', 'options.webhooks.ending']
                 const storedData = await chrome.storage.sync.get(storageKeys)
                 const notificationSetting = storedData[storageKeys[0]] || 'unlessWinning'
-                const iftttSetting = storedData[storageKeys[1]] || 'unlessWinning'
+                const webhooksSetting = storedData[storageKeys[1]] || 'unlessWinning'
 
                 // execute the notification action based on the setting
                 if (notificationSetting in notificationActions) {
                     notificationActions[notificationSetting]()
                 }
 
-                // execute the ifttt action based on the setting
-                if (iftttSetting in iftttActions) {
-                    iftttActions[iftttSetting]()
+                // execute the webhooks action based on the setting
+                if (webhooksSetting in webhooksActions) {
+                    webhooksActions[webhooksSetting]()
                 }
             }, milisecondsFromNow)
         })
@@ -401,14 +403,14 @@ const actionHandlers = {
             },
         }
 
-        const iftttActions = {
+        const webhooksActions = {
             'disabled': async () => {
                 return
             },
             'always': async () => {
                 const detail = await ApiCalls.refresh([args.listing_id])
 
-                notifyOutbid({ ifttt: true }, args.listing_id, args.previous_bid, args.current_bid, detail[args.listing_id].bid + detail[args.listing_id].bid_increment)
+                notifyOutbid({ webhooks: true }, args.listing_id, args.previous_bid, args.current_bid, detail[args.listing_id].bid + detail[args.listing_id].bid_increment)
             },
             'last2minutes': async () => {
                 const detail = await ApiCalls.refresh([args.listing_id])
@@ -417,24 +419,24 @@ const actionHandlers = {
 
                 // check if auction is ending
                 if (moment().isBetween(twoMinsFromEndTime, endTime)) {
-                    notifyOutbid({ ifttt: true }, args.listing_id, args.previous_bid, args.current_bid, detail[args.listing_id].bid + detail[args.listing_id].bid_increment)
+                    notifyOutbid({ webhooks: true }, args.listing_id, args.previous_bid, args.current_bid, detail[args.listing_id].bid + detail[args.listing_id].bid_increment)
                 }
             },
         }
 
-        const storageKeys = ['options.notifications.outbid', 'options.ifttt.outbid']
+        const storageKeys = ['options.notifications.outbid', 'options.webhooks.outbid']
         const storedData = await chrome.storage.sync.get(storageKeys)
         const notificationSetting = storedData[storageKeys[0]] || 'last2minutes'
-        const iftttSetting = storedData[storageKeys[1]] || 'last2minutes'
+        const webhooksSetting = storedData[storageKeys[1]] || 'last2minutes'
 
         // execute the notification action based on the setting
         if (notificationSetting in notifcationActions) {
             notifcationActions[notificationSetting]()
         }
 
-        // execute the ifttt action based on the setting
-        if (iftttSetting in iftttActions) {
-            iftttActions[iftttSetting]()
+        // execute the webhooks action based on the setting
+        if (webhooksSetting in webhooksActions) {
+            webhooksActions[webhooksSetting]()
         }
     },
 
@@ -448,28 +450,28 @@ const actionHandlers = {
             },
         }
 
-        const iftttActions = {
+        const webhooksActions = {
             'disabled': async () => {
                 return
             },
             'always': async () => {
-                notifyItemWon({ ifttt: true }, args.listing_id)
+                notifyItemWon({ webhooks: true }, args.listing_id)
             },
         }
 
-        const storageKeys = ['options.notifications.itemWon', 'options.ifttt.itemWon']
+        const storageKeys = ['options.notifications.itemWon', 'options.webhooks.itemWon']
         const storedData = await chrome.storage.sync.get(storageKeys)
         const notificationSetting = storedData[storageKeys[0]] || 'always'
-        const iftttSetting = storedData[storageKeys[1]] || 'always'
+        const webhooksSetting = storedData[storageKeys[1]] || 'always'
 
         // execute the notification action based on the setting
         if (notificationSetting in notificationActions) {
             notificationActions[notificationSetting]()
         }
 
-        // execute the ifttt action based on the setting
-        if (iftttSetting in iftttActions) {
-            iftttActions[iftttSetting]()
+        // execute the webhooks action based on the setting
+        if (webhooksSetting in webhooksActions) {
+            webhooksActions[webhooksSetting]()
         }
     },
 }
