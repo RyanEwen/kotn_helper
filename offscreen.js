@@ -3,7 +3,7 @@ const sounds = {
     yay: new Audio(chrome.runtime.getURL('audio/yay.mp3')),
 }
 
-const actionHandlers = {
+const messageHandlers = {
     PLAY_SOUND: (sound) => {
         sounds[sound].play()
     },
@@ -13,8 +13,9 @@ const actionHandlers = {
     },
 }
 
+// extension message handler
 chrome.runtime.onMessage.addListener(message => {
-    if (message.action in actionHandlers) {
-        return actionHandlers[message.action](message.args)
+    if (message.action in messageHandlers) {
+        messageHandlers[message.action](message.args)
     }
 })

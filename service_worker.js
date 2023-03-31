@@ -4,6 +4,7 @@ import moment from '/lib/moment.js';
 
 const data = {
     urls: {
+        base: 'https://kotnauction.com',
         listings: 'https://kotnauction.com/listings',
         watchedListings: 'https://kotnauction.com/listings/watched',
     },
@@ -13,303 +14,316 @@ const data = {
     watchedListings: {},
 }
 
-async function openOrFocusTab(urlMatch, url) {
-    const tabs = await chrome.tabs.query({ url: urlMatch })
+const utilities = {
+    updateBadge: (text, color) => {
+        chrome.action.setBadgeText({ text })
 
-    if (tabs.length) {
-        // focus existing tab and window
-        chrome.tabs.update(tabs[0].id, { active: true })
-        chrome.windows.update(tabs[0].windowId, { focused: true })
-    } else {
-        // open a new tab and focus window
-        chrome.tabs.create({ url })
-    }
-}
-
-async function reloadTab(urlMatch) {
-    const tabs = await chrome.tabs.query({ url: urlMatch })
-
-    if (tabs.length) {
-        chrome.tabs.reload(tabs[0].id)
-    }
-}
-
-async function openWatchedListings() {
-    openOrFocusTab(`${data.urls.watchedListings}*`, `${data.urls.watchedListings}?per_page=100`)
-}
-
-async function reloadWatchedListings() {
-    reloadTab(`${data.urls.watchedListings}*`)
-}
-
-async function openListing(id) {
-    openOrFocusTab(`${data.urls.listings}/${id}*`, `${data.urls.listings}/${id}`)
-}
-
-function createNotification(id, title, message, buttons = undefined) {
-    return chrome.notifications.create(id, {
-        type: 'basic',
-        title,
-        message,
-        buttons,
-        iconUrl: 'images/icon-48.jpeg',
-        // requireInteraction: true,
-    })
-}
-
-function clearBadge() {
-    updateBadge('')
-}
-
-function updateBadge(text, color) {
-    chrome.action.setBadgeText({ text })
-
-    if (color) {
-        chrome.action.setBadgeBackgroundColor({ color })
-    }
-}
-
-async function playSound(sound) {
-    await setupOffscreenDoc()
-
-    await chrome.runtime.sendMessage({
-        action: 'PLAY_SOUND',
-        args: sound,
-    })
-}
-
-async function setupOffscreenDoc() {
-    const path = 'offscreen.html'
-    const offscreenUrl = chrome.runtime.getURL(path)
-    const matchedClients = await clients.matchAll()
-
-    // don't do anything if there's already an offscreen doc
-    for (const client of matchedClients) {
-        if (client.url === offscreenUrl) {
-            return
+        if (color) {
+            chrome.action.setBadgeBackgroundColor({ color })
         }
-    }
+    },
 
-    // create the offscreen doc
-    await chrome.offscreen.createDocument({
-        url: chrome.runtime.getURL(path),
-        reasons: ['AUDIO_PLAYBACK'],
-        justification: 'Play a sound',
-    })
-}
+    openOrFocusTab: async (urlMatch, url) => {
+        const tabs = await chrome.tabs.query({ url: urlMatch })
 
-async function notifyEndingSoonButWinning(mediums, listingId, currentBid) {
-    const listingName = listingId == 'TEST' ? 'TEST ITEM ' : (data.watchedListings[listingId].name || '')
+        if (tabs.length) {
+            // focus existing tab and window
+            chrome.tabs.update(tabs[0].id, { active: true })
+            chrome.windows.update(tabs[0].windowId, { focused: true })
+        } else {
+            // open a new tab and focus window
+            chrome.tabs.create({ url })
+        }
+    },
 
-    if (mediums.sound) {
-        playSound('beeps')
-    }
+    reloadTab: async (urlMatch) => {
+        const tabs = await chrome.tabs.query({ url: urlMatch })
 
-    if (mediums.notification) {
-        createNotification(`ENDING_WINNING.${listingId}`, "Listing ending soon!", `$${currentBid} (you) - ${listingName}`, [
-            { title: 'View Listing' },
-        ])
-    }
+        if (tabs.length) {
+            chrome.tabs.reload(tabs[0].id)
+        }
+    },
 
-    if (mediums.webhooks) {
-        makeWebhookCalls({
-            event: 'listing_ending_soon_winning',
-            title: "Listing ending soon!",
-            message: `$${currentBid} (you) - ${listingName}`,
-            listingUrl: `${data.urls.listings}/${listingId}`,
-            listingName,
-            currentBid,
+    readCookie: async (name) => {
+        const cookie = await chrome.cookies.get({ name, url: urls.base })
+
+        return decodeURIComponent(cookie.value)
+    },
+
+    playSound: async (sound) => {
+        await utilities.setupOffscreenDoc()
+
+        await chrome.runtime.sendMessage({
+            action: 'PLAY_SOUND',
+            args: sound,
         })
-    }
-}
+    },
 
-async function notifyEndingSoonAndLosing(mediums, listingId, currentBid, nextBid) {
-    const listingName = listingId == 'TEST' ? 'TEST ITEM ' : (data.watchedListings[listingId].name || '')
+    setupOffscreenDoc: async () => {
+        const path = 'offscreen.html'
+        const offscreenUrl = chrome.runtime.getURL(path)
+        const matchedClients = await clients.matchAll()
 
-    if (mediums.sound) {
-        playSound('beeps')
-    }
+        // don't do anything if there's already an offscreen doc
+        for (const client of matchedClients) {
+            if (client.url === offscreenUrl) {
+                return
+            }
+        }
 
-    if (mediums.notification) {
-        createNotification(`ENDING_LOSING.${listingId}.${nextBid}`, "Listing ending soon!", `$${currentBid} - ${listingName}`, [
-            { title: 'Unwatch' },
-            { title: `Bid $${nextBid}` },
-        ])
-    }
-
-    if (mediums.webhooks) {
-        makeWebhookCalls({
-            event: 'listing_ending_soon_losing',
-            title: "Listing ending soon!",
-            message: `$${currentBid} - ${listingName}`,
-            listingUrl: `${data.urls.listings}/${listingId}`,
-            listingName,
-            currentBid,
-            nextBid,
+        // create the offscreen doc
+        await chrome.offscreen.createDocument({
+            url: chrome.runtime.getURL(path),
+            reasons: ['AUDIO_PLAYBACK'],
+            justification: 'Play a sound',
         })
-    }
-}
+    },
 
-async function notifyOutbid(mediums, listingId, previousBid, currentBid, nextBid) {
-    const listingName = listingId == 'TEST' ? 'TEST ITEM ' : (data.watchedListings[listingId].name || '')
-
-    if (mediums.sound) {
-        playSound('beeps')
-    }
-
-    if (mediums.notification) {
-        createNotification(`OUTBID.${listingId}.${nextBid}`, "You've been outbid!", `$${currentBid} - ${listingName}`, [
-            { title: 'Unwatch' },
-            { title: `Bid $${nextBid}` },
-        ])
-    }
-
-    if (mediums.webhooks) {
-        makeWebhookCalls({
-            event: 'outbid',
-            title: "You've been outbid!",
-            message: `$${currentBid} - ${listingName}`,
-            listingUrl: `${data.urls.listings}/${listingId}`,
-            listingName,
-            previousBid,
-            currentBid,
-            nextBid,
+    createBrowserNotification: (id, title, message, buttons = undefined) => {
+        return chrome.notifications.create(id, {
+            type: 'basic',
+            title,
+            message,
+            buttons,
+            iconUrl: 'images/icon-48.jpeg',
+            // requireInteraction: true,
         })
-    }
+    },
 }
 
-async function notifyItemWon(mediums, listingId) {
-    const listingName = listingId == 'TEST' ? 'TEST ITEM ' : (data.watchedListings[listingId].name || '')
+const tabs = {
+    openWatchedListings: () => {
+        utilities.openOrFocusTab(`${data.urls.watchedListings}*`, `${data.urls.watchedListings}?per_page=100`)
+    },
 
-    if (mediums.sound) {
-        playSound('yay')
-    }
+    reloadWatchedListings: () => {
+        utilities.reloadTab(`${data.urls.watchedListings}*`)
+    },
 
-    if (mediums.notification) {
-        createNotification(`ITEM_WON.${listingId}`, 'Item won!', listingName, [
-            { title: 'View listing' },
-        ])
-    }
-
-    if (mediums.webhooks) {
-        makeWebhookCalls({
-            event: 'item_won',
-            title: "Item Won!",
-            message: listingName,
-            listingUrl: `${data.urls.listings}/${listingId}`,
-            listingName,
-        })
-    }
+    openListing: (id) => {
+        utilities.openOrFocusTab(`${data.urls.listings}/${id}*`, `${data.urls.listings}/${id}`)
+    },
 }
 
-async function readCookie(name) {
-    const cookie = await chrome.cookies.get({ name, url: 'https://kotnauction.com' })
+const notifications = {
+    endingSoonButWinning: (mediums, listingId, currentBid) => {
+        const listingName = listingId == 'TEST' ? 'TEST ITEM ' : (data.watchedListings[listingId].name || '')
+        const title = "Listing ending soon!"
+        const message = `$${currentBid} (you) - ${listingName}`
 
-    return decodeURIComponent(cookie.value)
+        if (mediums.sound) {
+            utilities.playSound('beeps')
+        }
+
+        if (mediums.notification) {
+            utilities.createBrowserNotification(`ENDING_WINNING.${listingId}`, title, message, [
+                { title: 'View Listing' },
+            ])
+        }
+
+        if (mediums.webhooks) {
+            webhooks.call({
+                event: 'listing_ending_soon_winning',
+                title,
+                message,
+                listingUrl: `${data.urls.listings}/${listingId}`,
+                listingName,
+                currentBid,
+            })
+        }
+    },
+
+    endingSoonAndLosing: (mediums, listingId, currentBid, nextBid) => {
+        const listingName = listingId == 'TEST' ? 'TEST ITEM ' : (data.watchedListings[listingId].name || '')
+        const title = "Listing ending soon!"
+        const message = `$${currentBid} - ${listingName}`
+
+        if (mediums.sound) {
+            utilities.playSound('beeps')
+        }
+
+        if (mediums.notification) {
+            utilities.createBrowserNotification(`ENDING_LOSING.${listingId}.${nextBid}`, title, message, [
+                { title: 'Unwatch' },
+                { title: `Bid $${nextBid}` },
+            ])
+        }
+
+        if (mediums.webhooks) {
+            webhooks.call({
+                event: 'listing_ending_soon_losing',
+                title,
+                message,
+                listingUrl: `${data.urls.listings}/${listingId}`,
+                listingName,
+                currentBid,
+                nextBid,
+            })
+        }
+    },
+
+    outbid: (mediums, listingId, previousBid, currentBid, nextBid) => {
+        const listingName = listingId == 'TEST' ? 'TEST ITEM ' : (data.watchedListings[listingId].name || '')
+        const title = "You've been outbid!"
+        const message = `$${currentBid} - ${listingName}`
+
+        if (mediums.sound) {
+            utilities.playSound('beeps')
+        }
+
+        if (mediums.notification) {
+            utilities.createBrowserNotification(`OUTBID.${listingId}.${nextBid}`, title, message, [
+                { title: 'Unwatch' },
+                { title: `Bid $${nextBid}` },
+            ])
+        }
+
+        if (mediums.webhooks) {
+            webhooks.call({
+                event: 'outbid',
+                title,
+                message,
+                listingUrl: `${data.urls.listings}/${listingId}`,
+                listingName,
+                previousBid,
+                currentBid,
+                nextBid,
+            })
+        }
+    },
+
+    itemWon: (mediums, listingId) => {
+        const listingName = listingId == 'TEST' ? 'TEST ITEM ' : (data.watchedListings[listingId].name || '')
+        const title = 'Item won!'
+        const message = listingName
+
+        if (mediums.sound) {
+            utilities.playSound('yay')
+        }
+
+        if (mediums.notification) {
+            utilities.createBrowserNotification(`ITEM_WON.${listingId}`, title, message, [
+                { title: 'View listing' },
+            ])
+        }
+
+        if (mediums.webhooks) {
+            webhooks.call({
+                event: 'item_won',
+                title,
+                message,
+                listingUrl: `${data.urls.listings}/${listingId}`,
+                listingName,
+            })
+        }
+    },
 }
 
-async function makeApiCall(url, method = 'GET', data) {
-    const headers = {
-        'X-XSRF-TOKEN': await readCookie('XSRF-TOKEN'),
-        'Accept': 'application/json, text/plain, */*',
-    }
-
-    if (data) {
-        headers['Content-Type'] = 'application/json'
-    }
-
-    const body = data ? JSON.stringify(data) : undefined
-
-    const request = await fetch(url, { headers, body, method })
-
-    return request.json()
-}
-
-const ApiCalls = {
-    bid: (id, bid) => makeApiCall(`https://kotnauction.com/listings/${id}/bid`, 'POST', { bid }),
-    watch: (id) => makeApiCall(`https://kotnauction.com/listings/${id}/watch`, 'POST'),
-    ignore: (id) => makeApiCall(`https://kotnauction.com/listings/${id}/ignore`, 'POST'),
-    refresh: (ids) => makeApiCall('https://kotnauction.com/listings/refresh', 'POST', { ids }),
-}
-
-async function makeWebhookCalls(data) {
-    const storageKey = 'options.webhooks.urls'
-    const storedData = await chrome.storage.sync.get(storageKey)
-    const urls = (storedData[storageKey] || '').split("\n")
-
-    urls.forEach((url) => {
+const apis = {
+    call: async (url, method = 'GET', data) => {
         const headers = {
-            'Content-Type': 'application/json'
+            'X-XSRF-TOKEN': await utilities.readCookie('XSRF-TOKEN'),
+            'Accept': 'application/json, text/plain, */*',
+        }
+
+        if (data) {
+            headers['Content-Type'] = 'application/json'
         }
 
         const body = data ? JSON.stringify(data) : undefined
 
-        fetch(url, { headers, body, method: 'POST' })
-    })
+        const request = await fetch(url, { headers, body, method })
+
+        return request.json()
+    },
+
+    bid: (id, bid) => apis.call(`${urls.base}/listings/${id}/bid`, 'POST', { bid }),
+
+    watch: (id) => apis.call(`${urls.base}/listings/${id}/watch`, 'POST'),
+
+    ignore: (id) => apis.call(`${urls.base}/listings/${id}/ignore`, 'POST'),
+
+    refresh: (ids) => apis.call(`${urls.base}/listings/refresh`, 'POST', { ids }),
 }
 
-const actionHandlers = {
+const webhooks = {
+    call: async (data) => {
+        const storageKey = 'options.webhooks.urls'
+        const storedData = await chrome.storage.sync.get(storageKey)
+        const urls = (storedData[storageKey] || '').split("\n")
+
+        urls.forEach((url) => {
+            const headers = {
+                'Content-Type': 'application/json'
+            }
+
+            const body = data ? JSON.stringify(data) : undefined
+
+            fetch(url, { headers, body, method: 'POST' })
+        })
+    }
+}
+
+const messageHandlers = {
     SHOW_WATCHED_LISTINGS: (args, sender) => {
-        openWatchedListings()
+        tabs.openWatchedListings()
     },
 
     TEST_ENDING_WINNING_NOTIFICATION: (args, sender) => {
-        notifyEndingSoonButWinning({ sound: true, webhooks: true, notification: true}, 'TEST', 5)
+        notifications.endingSoonButWinning({ sound: true, webhooks: true, notification: true}, 'TEST', 5)
     },
 
     TEST_ENDING_LOSING_NOTIFICATION: (args, sender) => {
-        notifyEndingSoonAndLosing({ sound: true, webhooks: true, notification: true}, 'TEST', 5, 10)
+        notifications.endingSoonAndLosing({ sound: true, webhooks: true, notification: true}, 'TEST', 5, 10)
     },
 
     TEST_OUTBID_NOTIFICATION: (args, sender) => {
-        notifyOutbid({ sound: true, webhooks: true, notification: true}, 'TEST', 5, 10, 15)
+        notifications.outbid({ sound: true, webhooks: true, notification: true}, 'TEST', 5, 10, 15)
     },
 
     TEST_ITEM_WON_NOTIFICATION: (args, sender) => {
-        notifyItemWon({ sound: true, webhooks: true, notification: true}, 'TEST')
+        notifications.itemWon({ sound: true, webhooks: true, notification: true}, 'TEST')
     },
 
     WATCHED_LISTINGS_OPENED: async (args, sender) => {
         // check if the tab has already been opened (meaning this is a refresh)
         if (data.watchedListingsTabIds.includes(sender.tab.id)) {
-            // if tab used for comms is being refreshed, re-enable it
+            // if tab was being used for comms before being refresh re-enable comms
             if (data.watchedListingsTabIds[0] == sender.tab.id) {
                 console.log(`Enabling comms via tab ${sender.tab.id} again due to refresh`)
                 chrome.tabs.sendMessage(sender.tab.id, { action: 'ENABLE_COMMS' })
-                updateBadge('OK', 'green')
+                utilities.updateBadge('OK', 'green')
             }
+        // new tab opened
         } else {
-            // tab is new so add the id to the list
+            // add the tab id to the list
             data.watchedListingsTabIds.push(sender.tab.id)
 
-            // if this is the only tab then use it to for comms
+            // if this is the first/only tab, then use it for comms
             if (data.watchedListingsTabIds.length == 1) {
                 console.log(`Enabling comms via tab ${sender.tab.id}`)
                 chrome.tabs.sendMessage(sender.tab.id, { action: 'ENABLE_COMMS' })
-                updateBadge('OK', 'green')
+                utilities.updateBadge('OK', 'green')
             }
         }
     },
 
     WATCHED_LISTINGS_CONNECTED: async (args, sender) => {
-        data.userId = args.userId
-
-        data.username = args.username
-
-        // clear old timeouts
+        // clear old listing ending timeouts
         Object.entries(data.watchedListings).forEach(([listingId, listing]) => {
             clearTimeout(listing.timeout)
         })
 
-        // recreate watchedListings with test listing
+        data.userId = args.userId
+        data.username = args.username
         data.watchedListings = args.watchedListings
 
-        // create new timeouts
+        // create new listing ending timeouts
         Object.entries(data.watchedListings).forEach(([listingId, listing]) => {
             const endTime = moment(listing.end)
             const twoMinsFromEndTime = moment(endTime).subtract(2, 'minutes')
 
-            // don't notify if already ending right now
+            // don't create a timeout if listing is already ending
             if (moment().isBetween(twoMinsFromEndTime, endTime)) {
                 return
             }
@@ -319,7 +333,7 @@ const actionHandlers = {
 
             // run notify code 2m5s before endTime
             listing.timeout = setTimeout(async () => {
-                const detail = await ApiCalls.refresh([listingId])
+                const detail = await apis.refresh([listingId])
 
                 // don't go any further if the listing isn't watched or bid on
                 if (!detail[listingId].watch || detail[listingId].watch == 'ignore') {
@@ -332,9 +346,9 @@ const actionHandlers = {
                     },
                     'always': async () => {
                         if (detail[listingId].bidder == data.username) {
-                            notifyEndingSoonButWinning({ sound: true, notification: true}, listingId, detail[listingId].bid)
+                            notifications.endingSoonButWinning({ sound: true, notification: true}, listingId, detail[listingId].bid)
                         } else {
-                            notifyEndingSoonAndLosing({ sound: true, notification: true}, listingId, detail[listingId].bid, detail[listingId].bid + detail[listingId].bid_increment)
+                            notifications.endingSoonAndLosing({ sound: true, notification: true}, listingId, detail[listingId].bid, detail[listingId].bid + detail[listingId].bid_increment)
                         }
                     },
                     'unlessWinning': async () => {
@@ -342,7 +356,7 @@ const actionHandlers = {
                             return
                         }
 
-                        notifyEndingSoonAndLosing({ sound: true, notification: true}, listingId, detail[listingId].bid, detail[listingId].bid + detail[listingId].bid_increment)
+                        notifications.endingSoonAndLosing({ sound: true, notification: true}, listingId, detail[listingId].bid, detail[listingId].bid + detail[listingId].bid_increment)
                     },
                 }
 
@@ -352,9 +366,9 @@ const actionHandlers = {
                     },
                     'always': async () => {
                         if (detail[listingId].bidder == data.username) {
-                            notifyEndingSoonButWinning({ webhooks: true }, listingId, detail[listingId].bid)
+                            notifications.endingSoonButWinning({ webhooks: true }, listingId, detail[listingId].bid)
                         } else {
-                            notifyEndingSoonAndLosing({ webhooks: true }, listingId, detail[listingId].bid, detail[listingId].bid + detail[listingId].bid_increment)
+                            notifications.endingSoonAndLosing({ webhooks: true }, listingId, detail[listingId].bid, detail[listingId].bid + detail[listingId].bid_increment)
                         }
                     },
                     'unlessWinning': async () => {
@@ -362,7 +376,7 @@ const actionHandlers = {
                             return
                         }
 
-                        notifyEndingSoonAndLosing({ webhooks: true }, listingId, detail[listingId].bid, detail[listingId].bid + detail[listingId].bid_increment)
+                        notifications.endingSoonAndLosing({ webhooks: true }, listingId, detail[listingId].bid, detail[listingId].bid + detail[listingId].bid_increment)
                     },
                 }
 
@@ -394,7 +408,7 @@ const actionHandlers = {
 
         // refresh watched listings page if the item isn't on it
         if (args.listing_id in data.watchedListings == false) {
-            reloadWatchedListings()
+            tabs.reloadWatchedListings()
         }
     },
 
@@ -406,18 +420,18 @@ const actionHandlers = {
                 return
             },
             'always': async () => {
-                const detail = await ApiCalls.refresh([args.listing_id])
+                const detail = await apis.refresh([args.listing_id])
 
-                notifyOutbid({ sound: true, notification: true}, args.listing_id, args.previous_bid, args.current_bid, detail[args.listing_id].bid + detail[args.listing_id].bid_increment)
+                notifications.outbid({ sound: true, notification: true}, args.listing_id, args.previous_bid, args.current_bid, detail[args.listing_id].bid + detail[args.listing_id].bid_increment)
             },
             'last2minutes': async () => {
-                const detail = await ApiCalls.refresh([args.listing_id])
+                const detail = await apis.refresh([args.listing_id])
                 const endTime = moment(detail[args.listing_id].end)
                 const twoMinsFromEndTime = moment(endTime).subtract(2, 'minutes')
 
                 // check if auction is ending
                 if (moment().isBetween(twoMinsFromEndTime, endTime)) {
-                    notifyOutbid({ sound: true, notification: true}, args.listing_id, args.previous_bid, args.current_bid, detail[args.listing_id].bid + detail[args.listing_id].bid_increment)
+                    notifications.outbid({ sound: true, notification: true}, args.listing_id, args.previous_bid, args.current_bid, detail[args.listing_id].bid + detail[args.listing_id].bid_increment)
                 }
             },
         }
@@ -427,18 +441,18 @@ const actionHandlers = {
                 return
             },
             'always': async () => {
-                const detail = await ApiCalls.refresh([args.listing_id])
+                const detail = await apis.refresh([args.listing_id])
 
-                notifyOutbid({ webhooks: true }, args.listing_id, args.previous_bid, args.current_bid, detail[args.listing_id].bid + detail[args.listing_id].bid_increment)
+                notifications.outbid({ webhooks: true }, args.listing_id, args.previous_bid, args.current_bid, detail[args.listing_id].bid + detail[args.listing_id].bid_increment)
             },
             'last2minutes': async () => {
-                const detail = await ApiCalls.refresh([args.listing_id])
+                const detail = await apis.refresh([args.listing_id])
                 const endTime = moment(detail[args.listing_id].end)
                 const twoMinsFromEndTime = moment(endTime).subtract(2, 'minutes')
 
                 // check if auction is ending
                 if (moment().isBetween(twoMinsFromEndTime, endTime)) {
-                    notifyOutbid({ webhooks: true }, args.listing_id, args.previous_bid, args.current_bid, detail[args.listing_id].bid + detail[args.listing_id].bid_increment)
+                    notifications.outbid({ webhooks: true }, args.listing_id, args.previous_bid, args.current_bid, detail[args.listing_id].bid + detail[args.listing_id].bid_increment)
                 }
             },
         }
@@ -465,7 +479,7 @@ const actionHandlers = {
                 return
             },
             'always': async () => {
-                notifyItemWon({ sound: true, notification: true}, args.listing_id)
+                notifications.itemWon({ sound: true, notification: true}, args.listing_id)
             },
         }
 
@@ -474,7 +488,7 @@ const actionHandlers = {
                 return
             },
             'always': async () => {
-                notifyItemWon({ webhooks: true }, args.listing_id)
+                notifications.itemWon({ webhooks: true }, args.listing_id)
             },
         }
 
@@ -497,7 +511,7 @@ const actionHandlers = {
 
 const notificationHandlers = {
     INSTALLED: () => {
-        openWatchedListings()
+        tabs.openWatchedListings()
     },
 
     ENDING_WINNING: (buttonIndex, [ listingId ]) => {
@@ -506,8 +520,8 @@ const notificationHandlers = {
             case -1:
             // view button
             case 0:
-                // openListing(listingId)
-                openWatchedListings()
+                // tabs.openListing(listingId)
+                tabs.openWatchedListings()
             break
         }
     },
@@ -516,8 +530,8 @@ const notificationHandlers = {
         switch (buttonIndex) {
             // no button
             case -1:
-                // openListing(listingId)
-                openWatchedListings()
+                // tabs.openListing(listingId)
+                tabs.openWatchedListings()
             break
 
             // unwatch button
@@ -526,7 +540,7 @@ const notificationHandlers = {
                     break
                 }
 
-                ApiCalls.ignore(listingId)
+                apis.ignore(listingId)
             break
 
             // bid button
@@ -535,7 +549,7 @@ const notificationHandlers = {
                     break
                 }
 
-                ApiCalls.bid(listingId, nextBid)
+                apis.bid(listingId, nextBid)
             break
         }
     },
@@ -544,8 +558,8 @@ const notificationHandlers = {
         switch (buttonIndex) {
             // no button
             case -1:
-                // openListing(listingId)
-                openWatchedListings()
+                // tabs.openListing(listingId)
+                tabs.openWatchedListings()
             break
 
             // unwatch button
@@ -554,7 +568,7 @@ const notificationHandlers = {
                     break
                 }
 
-                ApiCalls.ignore(listingId)
+                apis.ignore(listingId)
             break
 
             // bid button
@@ -563,7 +577,7 @@ const notificationHandlers = {
                     break
                 }
 
-                ApiCalls.bid(listingId, nextBid)
+                apis.bid(listingId, nextBid)
             break
         }
     },
@@ -577,7 +591,7 @@ const notificationHandlers = {
 
             // view button
             case 0:
-                openListing(listingId)
+                tabs.openListing(listingId)
             break
         }
     }
@@ -586,18 +600,18 @@ const notificationHandlers = {
 // installation handler
 chrome.runtime.onInstalled.addListener(async ({ reason, version }) => {
     if (reason === chrome.runtime.OnInstalledReason.INSTALL) {
-        playSound('yay')
+        utilities.playSound('yay')
 
-        createNotification('INSTALLED', `Extension installed`, 'Yay!')
+        utilities.createBrowserNotification('INSTALLED', `Extension installed`, 'Yay!')
     }
 })
 
-// action message handler
+// extension message handler
 chrome.runtime.onMessage.addListener((message, sender) => {
     console.log(message, sender?.tab?.id)
 
-    if (message.action in actionHandlers) {
-        actionHandlers[message.action](message.args, sender)
+    if (message.action in messageHandlers) {
+        messageHandlers[message.action](message.args, sender)
     }
 })
 
@@ -619,11 +633,12 @@ chrome.notifications.onButtonClicked.addListener((id, index) => {
     }
 })
 
+// tab updated handler
 chrome.tabs.onUpdated.addListener(( updatedTabId, changeInfo, tab ) => {
     const commsTabId = data.watchedListingsTabIds[0]
 
     // if a watched listings tab has navigated elsewhere
-    if (data.watchedListingsTabIds.includes(updatedTabId) && 'url' in changeInfo && changeInfo.url.includes('kotnauction.com/listings/watched') == false) {
+    if (data.watchedListingsTabIds.includes(updatedTabId) && 'url' in changeInfo && changeInfo.url.includes(urls.watchedListings) == false) {
         // remove the tab id from the list
         data.watchedListingsTabIds = data.watchedListingsTabIds.filter((tabId) => tabId != updatedTabId)
 
@@ -637,11 +652,11 @@ chrome.tabs.onUpdated.addListener(( updatedTabId, changeInfo, tab ) => {
             // if there are other tabs that can be used for comms
             if (data.watchedListingsTabIds.length) {
                 // use the first one in the list
-                updateBadge('OK', 'green')
+                utilities.updateBadge('OK', 'green')
                 console.log(`Enabling comms via tab ${data.watchedListingsTabIds[0]} due to tab ${commsTabId} navigating away`)
                 chrome.tabs.sendMessage(data.watchedListingsTabIds[0], { action: 'ENABLE_COMMS' })
             } else {
-                clearBadge()
+                utilities.updateBadge('')
                 console.log('No tabs available for comms.')
             }
         }
@@ -665,14 +680,14 @@ chrome.tabs.onRemoved.addListener(( removedTabId ) => {
         // if there are other tabs that can be used for comms
         if (data.watchedListingsTabIds.length) {
             // use the first one in the list
-            updateBadge('OK', 'green')
+            utilities.updateBadge('OK', 'green')
             console.log(`Enabling comms via tab ${data.watchedListingsTabIds[0]} due to tab ${commsTabId} closing`)
             chrome.tabs.sendMessage(data.watchedListingsTabIds[0], { action: 'ENABLE_COMMS' })
         } else {
-            clearBadge()
+            utilities.updateBadge('')
             console.log('No tabs available for comms.')
         }
     }
 })
 
-clearBadge()
+utilities.updateBadge('')

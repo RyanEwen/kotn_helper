@@ -6,7 +6,7 @@ link.rel = 'stylesheet'
 link.href = chrome.runtime.getURL('inject_watched.css')
 document.getElementsByTagName('head')[0].appendChild(link)
 
-const actionHandlers = {
+const messageHandlers = {
     'ENABLE_COMMS': (args) => {
         // listen for postMessages from inject_watched.js
         window.addEventListener('message', (event) => {
@@ -17,7 +17,7 @@ const actionHandlers = {
             chrome.runtime.sendMessage(event.data.message)
         })
 
-        // send a keepalive to the service worker as long as this page is open
+        // send keepalives to the service worker as long as this page is open
         setInterval(() => {
             chrome.runtime.sendMessage({ action: 'KEEPALIVE' })
         }, 30000)
@@ -32,10 +32,10 @@ const actionHandlers = {
     },
 }
 
-// action message handler
+// extension message handler
 chrome.runtime.onMessage.addListener((message) => {
-    if (message.action in actionHandlers) {
-        return actionHandlers[message.action](message.args)
+    if (message.action in messageHandlers) {
+        messageHandlers[message.action](message.args)
     }
 })
 
