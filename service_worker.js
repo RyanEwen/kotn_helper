@@ -322,7 +322,6 @@ const messageHandlers = {
             if (data.watchedListingsTabIds[0] == sender.tab.id) {
                 console.log(`Enabling comms via tab ${sender.tab.id} again due to refresh`)
                 chrome.tabs.sendMessage(sender.tab.id, { action: 'ENABLE_COMMS' })
-                utilities.updateBadge('OK', 'green')
             }
         // new tab opened
         } else {
@@ -333,12 +332,13 @@ const messageHandlers = {
             if (data.watchedListingsTabIds.length == 1) {
                 console.log(`Enabling comms via tab ${sender.tab.id}`)
                 chrome.tabs.sendMessage(sender.tab.id, { action: 'ENABLE_COMMS' })
-                utilities.updateBadge('OK', 'green')
             }
         }
     },
 
     WATCHED_LISTINGS_CONNECTED: async (args, sender) => {
+        utilities.updateBadge('OK', 'green')
+
         // clear old listing ending timeouts
         Object.entries(data.watchedListings).forEach(([listingId, listing]) => {
             clearTimeout(listing.timeout)
@@ -688,7 +688,6 @@ chrome.tabs.onUpdated.addListener(async ( updatedTabId, changeInfo, tab ) => {
             // if there are other tabs that can be used for comms
             if (data.watchedListingsTabIds.length) {
                 // use the first one in the list
-                utilities.updateBadge('OK', 'green')
                 console.log(`Enabling comms via tab ${data.watchedListingsTabIds[0]} due to tab ${commsTabId} navigating away`)
                 chrome.tabs.sendMessage(data.watchedListingsTabIds[0], { action: 'ENABLE_COMMS' })
             } else {
@@ -716,7 +715,6 @@ chrome.tabs.onRemoved.addListener(( removedTabId ) => {
         // if there are other tabs that can be used for comms
         if (data.watchedListingsTabIds.length) {
             // use the first one in the list
-            utilities.updateBadge('OK', 'green')
             console.log(`Enabling comms via tab ${data.watchedListingsTabIds[0]} due to tab ${commsTabId} closing`)
             chrome.tabs.sendMessage(data.watchedListingsTabIds[0], { action: 'ENABLE_COMMS' })
         } else {
