@@ -13,9 +13,11 @@
     // push some basic user info and watched listing names
     forward('WATCHED_LISTINGS_CONNECTED', { userId, username, watchedListings })
 
+    // bind to socketio public channel
     window.Echo.channel('public')
         .listen('BidPlaced', (message) => forward('BID_PLACED', message))
 
+    // bind to socketio user channel
     window.Echo.private(`user.${authUserId}`)
         .listen('WatchStateChanged', (message) => forward('WATCH_STATE_CHANGED', message))
         .listen('BidderOutbid', (message) => forward('OUTBID', message))
