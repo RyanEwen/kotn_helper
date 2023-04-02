@@ -1,0 +1,32 @@
+/* .limiter {
+    max-width: initial !important;
+}
+
+.listing-tile-wrapper {
+    max-width: 12.5% !important;
+}
+
+.listing-tile-middle {
+    padding-bottom: 50% !important;
+} */
+
+.kotn-helper-friends-bidding {
+    /* padding: 2px 10px; */
+    /* font-size: 0.9em; */
+    text-align: center;
+    border-radius: 5px;
+    border: 1px solid var(--danger);
+    background-color: var(--orange);
+    /* outline: 1px solid rgba(255, 255, 255, 0.75); */
+}
+
+.kotn-helper-friends-bidding summary {
+    cursor: pointer;
+}
+
+.kotn-helper-friends-bidding ul {
+    display: inline-block;
+    list-style-type: initial;
+    list-style-position: inside;
+    text-align: left;
+}

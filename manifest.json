@@ -34,6 +34,14 @@
         },
         {
             "matches": [
+                "https://*.kotnauction.com/listings/*"
+            ],
+            "js": [
+                "content_script_listing.js"
+            ]
+        },
+        {
+            "matches": [
                 "https://*.kotnauction.com/listings/watched*"
             ],
             "js": [
@@ -49,6 +57,8 @@
             "resources": [
                 "inject_auctions.js",
                 "inject_auctions.css",
+                "inject_listing.js",
+                "inject_listing.css",
                 "inject_watched.js",
                 "inject_watched.css",
                 "audio/beep.mp3",

@@ -384,6 +384,11 @@ const messageHandlers = {
         })
     },
 
+    LISTING_LOADED: async (args, sender) => {
+        // check if friends are bidding on item
+        listings.checkIfFriendsBidding(args.listing, sender.tab.id)
+    },
+
     WATCHED_LISTINGS_OPENED: async (args, sender) => {
         // check if the tab has already been opened (meaning this is a refresh)
         if (data.watchedListingsTabIds.includes(sender.tab.id)) {
