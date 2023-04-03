@@ -35,8 +35,13 @@
 
         textarea {
             white-space: nowrap;
-            min-height: 100px;
             width: 294px;
+            min-height: 40px;
+            transition: min-height 0.15s;
+        }
+
+        textarea:focus {
+            min-height: 150px;
         }
     </style>
 </head>
