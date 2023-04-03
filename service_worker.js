@@ -158,24 +158,36 @@ const notifications = {
         const message = `$${currentBid} (you) - ${listingName}`
 
         if (mediums.sound) {
-            utilities.playSound('beeps')
+            try {
+                utilities.playSound('beeps')
+            } catch (e) {
+                console.error(e)
+            }
         }
 
         if (mediums.notification) {
-            utilities.createBrowserNotification(`ENDING_WINNING.${listingId}`, title, message, [
-                { title: 'View Listing' },
-            ])
+            try {
+                utilities.createBrowserNotification(`ENDING_WINNING.${listingId}`, title, message, [
+                    { title: 'View Listing' },
+                ])
+            } catch (e) {
+                console.error(e)
+            }
         }
 
         if (mediums.webhooks) {
-            webhooks.call({
-                event: 'listing_ending_soon_winning',
-                title,
-                message,
-                listingUrl: `${data.urls.listings}/${listingId}`,
-                listingName,
-                currentBid,
-            })
+            try {
+                webhooks.call({
+                    event: 'listing_ending_soon_winning',
+                    title,
+                    message,
+                    listingUrl: `${data.urls.listings}/${listingId}`,
+                    listingName,
+                    currentBid,
+                })
+            } catch (e) {
+                console.error(e)
+            }
         }
     },
 
@@ -185,26 +197,38 @@ const notifications = {
         const message = `$${currentBid} - ${listingName}`
 
         if (mediums.sound) {
-            utilities.playSound('beeps')
+            try {
+                utilities.playSound('beeps')
+            } catch (e) {
+                console.error(e)
+            }
         }
 
         if (mediums.notification) {
-            utilities.createBrowserNotification(`ENDING_LOSING.${listingId}.${nextBid}`, title, message, [
-                { title: 'Unwatch' },
-                { title: `Bid $${nextBid}` },
-            ])
+            try {
+                utilities.createBrowserNotification(`ENDING_LOSING.${listingId}.${nextBid}`, title, message, [
+                    { title: 'Unwatch' },
+                    { title: `Bid $${nextBid}` },
+                ])
+            } catch (e) {
+                console.error(e)
+            }
         }
 
         if (mediums.webhooks) {
-            webhooks.call({
-                event: 'listing_ending_soon_losing',
-                title,
-                message,
-                listingUrl: `${data.urls.listings}/${listingId}`,
-                listingName,
-                currentBid,
-                nextBid,
-            })
+            try {
+                webhooks.call({
+                    event: 'listing_ending_soon_losing',
+                    title,
+                    message,
+                    listingUrl: `${data.urls.listings}/${listingId}`,
+                    listingName,
+                    currentBid,
+                    nextBid,
+                })
+            } catch (e) {
+                console.error(e)
+            }
         }
     },
 
@@ -214,27 +238,39 @@ const notifications = {
         const message = `$${currentBid} - ${listingName}`
 
         if (mediums.sound) {
-            utilities.playSound('beeps')
+            try {
+                utilities.playSound('beeps')
+            } catch (e) {
+                console.error(e)
+            }
         }
 
         if (mediums.notification) {
-            utilities.createBrowserNotification(`OUTBID.${listingId}.${nextBid}`, title, message, [
-                { title: 'Unwatch' },
-                { title: `Bid $${nextBid}` },
-            ])
+            try {
+                utilities.createBrowserNotification(`OUTBID.${listingId}.${nextBid}`, title, message, [
+                    { title: 'Unwatch' },
+                    { title: `Bid $${nextBid}` },
+                ])
+            } catch (e) {
+                console.error(e)
+            }
         }
 
         if (mediums.webhooks) {
-            webhooks.call({
-                event: 'outbid',
-                title,
-                message,
-                listingUrl: `${data.urls.listings}/${listingId}`,
-                listingName,
-                previousBid,
-                currentBid,
-                nextBid,
-            })
+            try {
+                webhooks.call({
+                    event: 'outbid',
+                    title,
+                    message,
+                    listingUrl: `${data.urls.listings}/${listingId}`,
+                    listingName,
+                    previousBid,
+                    currentBid,
+                    nextBid,
+                })
+            } catch (e) {
+                console.error(e)
+            }
         }
     },
 
@@ -244,23 +280,35 @@ const notifications = {
         const message = listingName
 
         if (mediums.sound) {
-            utilities.playSound('yay')
+            try {
+                utilities.playSound('yay')
+            } catch (e) {
+                console.error(e)
+            }
         }
 
         if (mediums.notification) {
-            utilities.createBrowserNotification(`ITEM_WON.${listingId}`, title, message, [
-                { title: 'View listing' },
-            ])
+            try {
+                utilities.createBrowserNotification(`ITEM_WON.${listingId}`, title, message, [
+                    { title: 'View listing' },
+                ])
+            } catch (e) {
+                console.error(e)
+            }
         }
 
         if (mediums.webhooks) {
-            webhooks.call({
-                event: 'item_won',
-                title,
-                message,
-                listingUrl: `${data.urls.listings}/${listingId}`,
-                listingName,
-            })
+            try {
+                webhooks.call({
+                    event: 'item_won',
+                    title,
+                    message,
+                    listingUrl: `${data.urls.listings}/${listingId}`,
+                    listingName,
+                })
+            } catch (e) {
+                console.error(e)
+            }
         }
     },
 }
@@ -388,14 +436,6 @@ const messageHandlers = {
             }
 
             processNextBatch()
-
-            // for (const listingId in args.listings) {
-            //     const listing = args.listings[listingId]
-
-            //     listing.bids = await apis.getBids(listingId)
-
-            //     listings.checkIfFriendsBidding(listing, sender.tab.id)
-            // }
         })
     },
 
@@ -474,14 +514,6 @@ const messageHandlers = {
             }
 
             processNextBatch()
-
-            // for (const listingId in data.watchedListings) {
-            //     const listing = data.watchedListings[listingId]
-
-            //     listing.bids = await apis.getBids(listingId)
-
-            //     listings.checkIfFriendsBidding(listing)
-            // }
         })
 
         // create new listing ending timeouts
@@ -699,6 +731,10 @@ const browserNotificationHandlers = {
     },
 
     ENDING_WINNING: (buttonIndex, [ listingId ]) => {
+        if (listingId == 'TEST') {
+            return listings.openWatchedListingsTab()
+        }
+
         switch (buttonIndex) {
             // no button
             case -1:
@@ -711,6 +747,10 @@ const browserNotificationHandlers = {
     },
 
     ENDING_LOSING: (buttonIndex, [ listingId, nextBid ]) => {
+        if (listingId == 'TEST') {
+            return listings.openWatchedListingsTab()
+        }
+
         switch (buttonIndex) {
             // no button
             case -1:
@@ -739,6 +779,10 @@ const browserNotificationHandlers = {
     },
 
     OUTBID: (buttonIndex, [ listingId, nextBid ]) => {
+        if (listingId == 'TEST') {
+            return listings.openWatchedListingsTab()
+        }
+
         switch (buttonIndex) {
             // no button
             case -1:
@@ -767,6 +811,10 @@ const browserNotificationHandlers = {
     },
 
     ITEM_WON: (buttonIndex, [ listingId ]) => {
+        if (listingId == 'TEST') {
+            return listings.openWatchedListingsTab()
+        }
+
         switch (buttonIndex) {
             // no button
             case -1:
