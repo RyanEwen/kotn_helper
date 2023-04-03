@@ -13,9 +13,30 @@ const messageHandlers = {
         div.className = 'kotn-helper-friends-bidding'
         div.innerHTML = `
             <details>
-                <summary>Friends Bidding</summary>
+                <summary>Friend(s) Bidding</summary>
                 <ul>
                     ${args.friendsBids.map((bid) => `<li>${bid.bidder} ($${bid.bid})</li>`).join('')}
+                </ul>
+            </details>
+        `
+
+        listingEl.querySelector('.listing-tile-middle').appendChild(div)
+    },
+
+    HIGHLIGHT_SPOUSE_LISTING: (args) => {
+        const listingEl = document.querySelector(`.listings-grid *[data-id="${args.listingId}"]`)
+
+        if (!listingEl) {
+            return
+        }
+
+        const div = listingEl.querySelector('.kotn-helper-spouses-bidding') || document.createElement('div')
+        div.className = 'kotn-helper-spouses-bidding'
+        div.innerHTML = `
+            <details>
+                <summary>Spouse(s) Bidding</summary>
+                <ul>
+                    ${args.spousesBids.map((bid) => `<li>${bid.bidder} ($${bid.bid})</li>`).join('')}
                 </ul>
             </details>
         `

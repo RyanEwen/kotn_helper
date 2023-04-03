@@ -15,9 +15,30 @@ if (window.location.href.includes('listings/watched') == false) {
             div.className = 'section kotn-helper-friends-bidding'
             div.innerHTML = `
                 <details>
-                    <summary>Friends Bidding</summary>
+                    <summary>Friend(s) Bidding</summary>
                     <ul>
                         ${args.friendsBids.map((bid) => `<li>${bid.bidder} ($${bid.bid})</li>`).join('')}
+                    </ul>
+                </details>
+            `
+
+            listingEl.querySelector('.body .content').prepend(div)
+        },
+
+        HIGHLIGHT_SPOUSE_LISTING: (args) => {
+            const listingEl = document.querySelector(`#listing-page .listing-content`)
+
+            if (!listingEl) {
+                return
+            }
+
+            const div = listingEl.querySelector('.kotn-helper-spouses-bidding') || document.createElement('div')
+            div.className = 'section kotn-helper-spouses-bidding'
+            div.innerHTML = `
+                <details>
+                    <summary>Spouse(s) Bidding</summary>
+                    <ul>
+                        ${args.spousesBids.map((bid) => `<li>${bid.bidder} ($${bid.bid})</li>`).join('')}
                     </ul>
                 </details>
             `

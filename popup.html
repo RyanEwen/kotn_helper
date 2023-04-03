@@ -5,7 +5,7 @@
         html {
             background: #333;
             color: #e5e5e5;
-            min-width: 500px;
+            min-width: 525px;
             min-height: 100px;
         }
 
@@ -20,15 +20,17 @@
         label {
             display: flex;
             justify-content: space-between;
-            margin: 4px;
+            margin: 5px;
         }
 
-        label input {
+        input {
             width: 292px;
+            padding: 2px;
         }
 
-        label select {
+        select {
             width: 300px;
+            padding: 2px;
         }
 
         textarea {
@@ -49,9 +51,9 @@
             <label title="2 minutes and 5 seconds before auction end time">
                 When listing is ending
                 <select data-option_key="options.notifications.ending">
-                    <option value="disabled">No notification</option>
+                    <option value="disabled">Don't notify me</option>
                     <option value="always">Always notify me</option>
-                    <option value="unlessWinning" selected>Notify if not winning</option>
+                    <option value="unlessWinning" selected>Only notify me if I'm losing</option>
                 </select>
             </label>
         </div>
@@ -59,9 +61,9 @@
             <label>
                 When outbid
                 <select data-option_key="options.notifications.outbid">
-                    <option value="disabled">No notification</option>
+                    <option value="disabled">Don't notify me</option>
                     <option value="always">Always notify me</option>
-                    <option value="last2minutes" selected>Notify if 2 minutes or less remaining</option>
+                    <option value="last2minutes" selected>Only notify me if outbid as listing is ending</option>
                 </select>
             </label>
         </div>
@@ -80,7 +82,10 @@
     <p>Webooks will be called via POST with a JSON payload containing event details</p>
     <div>
         <label>
-            Webhook URLs<br />(one per line)
+            <div>
+                Webhook URLs<br />
+                <em>one per line</em>
+            </div>
             <textarea data-option_key="options.webhooks.urls"></textarea>
         </label>
     </div>
@@ -88,9 +93,9 @@
         <label title="2 minutes and 5 seconds before auction end time">
             When listing is ending
             <select data-option_key="options.webhooks.ending">
-                <option value="disabled">No notification</option>
+                <option value="disabled">Don't notify me</option>
                 <option value="always">Always notify me</option>
-                <option value="unlessWinning" selected>Notify if not winning</option>
+                <option value="unlessWinning" selected>Only notify me if I'm losing</option>
             </select>
         </label>
     </div>
@@ -98,9 +103,9 @@
         <label>
             When outbid
             <select data-option_key="options.webhooks.outbid">
-                <option value="disabled">No notification</option>
+                <option value="disabled">Don't notify me</option>
                 <option value="always">Always notify me</option>
-                <option value="last2minutes" selected>Notify if 2 minutes or less remaining</option>
+                <option value="last2minutes" selected>Only notify me if outbid as listing is ending</option>
             </select>
         </label>
     </div>
@@ -115,11 +120,23 @@
     </div>
 
     <div>
-        <h3>Friends</h3>
+        <h3>Conflict Prevention</h3>
         <div>
             <label>
-                Usernames<br />(one per line)
+                <div>
+                    Friend Usernames<br />
+                    <em>one per line</em>
+                </div>
                 <textarea data-option_key="options.friends.names"></textarea>
+            </label>
+        </div>
+        <div>
+            <label>
+                <div>
+                    Spouse Usernames<br />
+                    <em>one per line</em>
+                </div>
+                <textarea data-option_key="options.spouses.names"></textarea>
             </label>
         </div>
     </div>

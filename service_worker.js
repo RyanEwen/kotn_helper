@@ -41,11 +41,9 @@ const utilities = {
     reloadTabs: async (urlMatch) => {
         const tabs = await chrome.tabs.query({ url: urlMatch })
 
-        if (tabs.length) {
-            tabs.forEach((tab) => {
-                chrome.tabs.reload(tabs.id)
-            })
-        }
+        tabs.forEach((tab) => {
+            chrome.tabs.reload(tabs.id)
+        })
     },
 
     readCookie: async (name) => {
@@ -110,13 +108,18 @@ const listings = {
     },
 
     checkIfFriendsBidding: async (listing, tabId) => {
-        const storageKey = 'options.friends.names'
-        const storedData = await chrome.storage.sync.get(storageKey)
-        const friendsSetting = storedData[storageKey] || ''
+        const storageKeys = ['options.friends.names', 'options.spouses.names']
+        const storedData = await chrome.storage.sync.get(storageKeys)
+        const friendsSetting = storedData[storageKeys[0]] || ''
+        const spousesSetting = storedData[storageKeys[1]] || ''
         const friends = friendsSetting.split("\n")
+        const spouses = spousesSetting.split("\n")
 
         const friendsBids = (listing.bids || [])
             .filter((bid) => friends.includes(bid.bidder))
+
+        const spousesBids = (listing.bids || [])
+            .filter((bid) => spouses.includes(bid.bidder))
 
         // only send to specific tab if requested by a specific tab
         const tabIds = tabId ? [tabId] : data.watchedListingsTabIds
@@ -128,6 +131,18 @@ const listings = {
                     args: {
                         listingId: listing.id,
                         friendsBids,
+                    },
+                })
+            })
+        }
+
+        if (spousesBids.length) {
+            tabIds.forEach((tabId) => {
+                chrome.tabs.sendMessage(tabId, {
+                    action: 'HIGHLIGHT_SPOUSE_LISTING',
+                    args: {
+                        listingId: listing.id,
+                        spousesBids,
                     },
                 })
             })

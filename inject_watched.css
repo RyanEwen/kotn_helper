@@ -1,16 +1,15 @@
-/* .limiter {
-    max-width: initial !important;
-}
-
-.listing-tile-wrapper {
-    max-width: 12.5% !important;
-}
-
-.listing-tile-middle {
-    padding-bottom: 50% !important;
-} */
-
 .kotn-helper-friends-bidding {
+    border: 1px solid var(--danger);
+    background-color: var(--orange);
+}
+
+.kotn-helper-spouses-bidding {
+    border: 1px solid var(--blue);
+    background-color: var(--green);
+}
+
+.kotn-helper-friends-bidding,
+.kotn-helper-spouses-bidding {
     position: absolute;
     bottom: 3px;
     right: 3px;
@@ -19,16 +18,16 @@
     font-size: 0.9em;
     text-align: center;
     border-radius: 5px;
-    border: 1px solid var(--danger);
-    background-color: var(--orange);
     outline: 1px solid rgba(255, 255, 255, 0.75);
 }
 
-.kotn-helper-friends-bidding summary  {
+.kotn-helper-friends-bidding summary ,
+.kotn-helper-spouses-bidding summary  {
     cursor: pointer;
 }
 
-.kotn-helper-friends-bidding ul {
+.kotn-helper-friends-bidding ul,
+.kotn-helper-spouses-bidding ul {
     display: inline-block;
     list-style-type: initial;
     list-style-position: inside;
