@@ -1,13 +1,10 @@
-(function() {
+(async function () {
     function forwardToContentScript(action, args) {
         window.postMessage({ from: 'LISTING_INJECT_SCRIPT', message: { action, args } })
     }
 
-    // create an object similar to listingData but with the item name added-in (scraped from DOM)
-    const listingEl = document.querySelector(`#listing-page .listing-content .header`)
+    const name = document.querySelector('.listing-content .header h1').innerText
 
-    const listingObj = { ...listing, name: listingEl.innerText, bids: initialBids }
-
-    // push some basic user info and watched listing names
-    forwardToContentScript('LISTING_LOADED', { userId: user.id, username: user.username, listing: listingObj })
+    // push listing info
+    forwardToContentScript('LISTING_INECTED', { listing: { ...listing, name, bids: initialBids }})
 }())

@@ -5,18 +5,18 @@ const sounds = {
 
 // extension message handlers
 const messageHandlers = {
-    PLAY_SOUND: (sound) => {
+    PLAY_SOUND: async (sound) => {
         sounds[sound].play()
-    },
-
-    SHOW_ALERT: (text) => {
-        alert(text)
     },
 }
 
 // listen for extension messages
-chrome.runtime.onMessage.addListener(message => {
+chrome.runtime.onMessage.addListener((message, sender, respond) => {
     if (message.action in messageHandlers) {
-        messageHandlers[message.action](message.args)
+        messageHandlers[message.action](message.args, sender).then((response) => {
+            if (response) {
+                respond(response)
+            }
+        })
     }
 })

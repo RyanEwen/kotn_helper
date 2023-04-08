@@ -1,6 +1,6 @@
 {
     "name": "KotN Helper",
-    "version": "1.4",
+    "version": "1.5",
     "manifest_version": 3,
     "icons": {
         "16": "images/icon-16.jpeg",
@@ -17,7 +17,7 @@
         "offscreen"
     ],
     "host_permissions": [
-        "https://*.kotnauction.com/*"
+        "*://*.kotnauction.com/*"
     ],
     "background": {
         "service_worker": "service_worker.js",
@@ -25,36 +25,27 @@
     },
     "content_scripts": [
         {
-            "matches": [
-                "https://*.kotnauction.com/auctions/*"
-            ],
-            "js": [
-                "content_script_auctions.js"
-            ]
+            "matches": [ "https://*.kotnauction.com/*" ],
+            "js": [ "content_script_any.js" ]
         },
         {
-            "matches": [
-                "https://*.kotnauction.com/listings/*"
-            ],
-            "js": [
-                "content_script_listing.js"
-            ]
+            "matches": [ "https://*.kotnauction.com/auctions/*" ],
+            "js": [ "content_script_auctions.js" ]
         },
         {
-            "matches": [
-                "https://*.kotnauction.com/listings/watched*"
-            ],
-            "js": [
-                "content_script_watched.js"
-            ]
+            "matches": [ "https://*.kotnauction.com/listings/*" ],
+            "js": [ "content_script_listing.js" ]
+        },
+        {
+            "matches": [ "https://*.kotnauction.com/listings/watched*" ],
+            "js": [ "content_script_watched.js" ]
         }
     ],
     "web_accessible_resources": [
         {
-            "matches": [
-                "*://*/*"
-            ],
+            "matches": [ "*://*/*" ],
             "resources": [
+                "inject_any.js",
                 "inject_auctions.js",
                 "inject_auctions.css",
                 "inject_listing.js",
