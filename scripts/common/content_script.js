@@ -124,7 +124,7 @@
             }
 
             const parentEl = listingFns.listingIconParent(listingId)
-            const currentBid = Big(bids[0].bid || 0).toFixed(2)
+            const currentBid = Big(bids[0]?.bid || 0).toFixed(2)
             const currentBidFee = Big(currentBid).times(0.1).toFixed(2)
             const currentBidPlusFee = Big(currentBid).plus(currentBidFee).toFixed(2)
             const currentBidPlusFeeTax = Big(currentBidPlusFee).times(0.13).toFixed(2)
