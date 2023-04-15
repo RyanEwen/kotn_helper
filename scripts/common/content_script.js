@@ -48,7 +48,7 @@
         },
 
         createDetailsEl: (parent, className, summary, body) => {
-            let el = parent.querySelector(`.${className}`)
+            let el = parent.querySelector(`.${className.split(' ').join('.')}`)
 
             if (!el) {
                 el = document.createElement('details')
