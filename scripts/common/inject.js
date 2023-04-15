@@ -1,6 +1,6 @@
-(async function () {
-    function forwardToContentScript(action, args) {
-        window.postMessage({ from: 'ANY_INJECT_SCRIPT', message: { action, args } })
+;(async function () {
+    function sendMessage(message) {
+        window.postMessage({ to: 'COMMON_CONTENT_SCRIPT', message })
     }
 
     // connect to websockets
@@ -22,34 +22,34 @@
         })
 
         socket
-            .on('App\\Events\\BidPlaced', (channel, message) => forwardToContentScript('BID_PLACED', message))
-            .on('App\\Events\\WatchStateChanged', (channel, message) => forwardToContentScript('WATCH_STATE_CHANGED', message))
-            .on('App\\Events\\BidderOutbid', (channel, message) => forwardToContentScript('OUTBID', message))
-            .on('App\\Events\\ItemWon', (channel, message) => forwardToContentScript('ITEM_WON', message))
+            .on('App\\Events\\BidPlaced', (channel, args) => sendMessage({ action: 'BID_PLACED', args }))
+            .on('App\\Events\\WatchStateChanged', (channel, args) => sendMessage({ action: 'WATCH_STATE_CHANGED', args }))
+            .on('App\\Events\\BidderOutbid', (channel, args) => sendMessage({ action: 'OUTBID', args }))
+            .on('App\\Events\\ItemWon', (channel, args) => sendMessage({ action: 'ITEM_WON', args }))
 
         socket.on('connect', () => {
             socket.emit('subscribe', { channel: 'public', auth: { headers } })
             socket.emit('subscribe', { channel: `private-user.${authUserId}`, auth: { headers } })
 
-            forwardToContentScript('WS_CONNECTED')
+            sendMessage({ action: 'WS_CONNECTED' })
         })
 
         socket.on('reconnecting', () => {
-            forwardToContentScript('WS_RECONNECTING')
+            sendMessage({ action: 'WS_RECONNECTING' })
         })
 
         socket.on('reconnect_error', () => {
-            forwardToContentScript('WS_RECONNECT_ERROR')
+            sendMessage({ action: 'WS_RECONNECT_ERROR' })
         })
 
         socket.on('reconnect_failed', () => {
-            forwardToContentScript('WS_RECONNECT_FAIL')
+            sendMessage({ action: 'WS_RECONNECT_FAIL' })
         })
 
         socket.on('disconnect', () => {
-            forwardToContentScript('WS_DISCONNECTED')
+            sendMessage({ action: 'WS_DISCONNECTED' })
         })
     }
 
-    forwardToContentScript('ANY_INJECTED')
+    sendMessage({ action: 'COMMON_SCRIPT_INJECTED' })
 }())

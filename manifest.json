@@ -26,32 +26,36 @@
     "content_scripts": [
         {
             "matches": [ "https://*.kotnauction.com/*" ],
-            "js": [ "content_script_any.js" ]
+            "js": [
+                "lib/big.js",
+                "scripts/common/content_script.js"
+            ]
         },
         {
             "matches": [ "https://*.kotnauction.com/auctions/*" ],
-            "js": [ "content_script_auctions.js" ]
+            "js": [ "scripts/auctions/content_script.js" ]
         },
         {
             "matches": [ "https://*.kotnauction.com/listings/*" ],
-            "js": [ "content_script_listing.js" ]
+            "js": [ "scripts/listing/content_script.js" ]
         },
         {
             "matches": [ "https://*.kotnauction.com/listings/watched*" ],
-            "js": [ "content_script_watched.js" ]
+            "js": [ "scripts/watched_listings/content_script.js" ]
         }
     ],
     "web_accessible_resources": [
         {
             "matches": [ "*://*/*" ],
             "resources": [
-                "inject_any.js",
-                "inject_auctions.js",
-                "inject_auctions.css",
-                "inject_listing.js",
-                "inject_listing.css",
-                "inject_watched.js",
-                "inject_watched.css",
+                "scripts/common/inject.js",
+                "scripts/common/inject.css",
+                "scripts/auctions/inject.js",
+                "scripts/auctions/inject.css",
+                "scripts/listing/inject.js",
+                "scripts/listing/inject.css",
+                "scripts/watched_listings/inject.js",
+                "scripts/watched_listings/inject.css",
                 "audio/beep.mp3",
                 "audio/yay.mp3"
             ]

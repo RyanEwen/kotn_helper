@@ -12,6 +12,8 @@ const messageHandlers = {
 
 // listen for extension messages
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
+    console.log(message, sender?.tab?.id)
+
     if (message.action in messageHandlers) {
         messageHandlers[message.action](message.args, sender).then((response) => {
             if (response) {
