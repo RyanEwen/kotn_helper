@@ -59,7 +59,6 @@
 
 .kotn-helper-icon ul {
     display: inline-block;
-    text-align: left;
     font-size: 0.85em;
 }
 
@@ -71,7 +70,6 @@
 .kotn-helper-price-icon {
     top: 3px;
     left: 4px;
-    text-align: left;
 }
 
 /* Bids Icon */
@@ -79,6 +77,19 @@
     top: 3px;
     right: 4px;
     background-color: var(--info);
+}
+
+/* Notes Icon */
+.kotn-helper-notes-icon {
+    top: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.kotn-helper-notes-icon[open] {
+    left: 4px;
+    right: 4px;
+    transform: initial;
 }
 
 /* Friends Bidding */

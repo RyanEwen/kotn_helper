@@ -72,6 +72,10 @@
             return commonFns.createDetailsEl(parentEl, 'kotn-helper-icon kotn-helper-bids-icon', iconHtml, `<hr />${bodyHtml}`)
         },
 
+        renderNotesIcon: (parentEl, iconHtml, bodyHtml) => {
+            return commonFns.createDetailsEl(parentEl, 'kotn-helper-icon kotn-helper-notes-icon', iconHtml, `<hr />${bodyHtml}`)
+        },
+
         renderOthersBiddingIcon: (parentEl, iconClass, iconHtml, bodyHtml) => {
             return commonFns.createDetailsEl(parentEl, `kotn-helper-icon kotn-helper-others-bidding ${iconClass}`, iconHtml, `<hr />${bodyHtml}`)
         },
@@ -101,6 +105,13 @@
                 return [listingId, listingEl.innerText.trim()]
             }))
         },
+
+        scrapeNotesFromListing: async ({ html, listingId }) => {
+            const parser = new DOMParser()
+            const dom = parser.parseFromString(html, 'text/html')
+
+            return dom.querySelector('.listing-content .condition > *:last-child > *:last-child').innerText.replaceAll("\n", '<br />')
+        },
     }
 
     // extension message handlers
@@ -117,7 +128,11 @@
             return commonFns.scrapeNamesFromListings(args)
         },
 
-        PUSH_LISTING_DETAILS: async ({ listingId, listing, bids, name }) => {
+        SCRAPE_NOTES_FROM_LISTING: async (args) => {
+            return commonFns.scrapeNotesFromListing(args)
+        },
+
+        PUSH_LISTING_DETAILS: async ({ listingId, listing, bids, name, notes }) => {
             // ignore data that isn't relevant (happens if service worker is still fetching data after tab changes pages)
             if (commonData.listingIds.includes(listingId) == false) {
                 return
@@ -137,7 +152,7 @@
             }
 
             // listingFns are defined in the other content scripts
-            const parentEl = listingFns.listingIconParent(listingId)
+            const parentEl = listingFns.listingIconParentEl(listingId)
 
             // current bid totals
             const currentBid = Big(bids[0]?.bid || 0).toFixed(2)
@@ -196,41 +211,43 @@
             )
 
             // bids icon
-            commonFns.renderBidsIcon(parentEl,
+            commonFns.renderBidsIcon(
+                parentEl,
                 `${bids.length} bids`,
                 `<table>${bids.map((bid) => `<tr><td>${bid.bidder}</td><td class="currency">$${bid.bid}</td></tr>`).join('')}</table>`
             )
 
-            const friendsBids = (bids || []).filter((bid) => commonData.friends.includes(bid.bidder))
-            const uniqueFriendNames = friendsBids.reduce((names, bid) => {
-                if (names.includes(bid.bidder) == false) {
-                    names.push(bid.bidder)
-                }
+            // condition notes icon
+            const hasSpecialCondition = listingFns.hasSpecialCondition(listingId)
 
-                return names
-            }, [])
+            if (hasSpecialCondition) {
+                commonFns.renderNotesIcon(parentEl, 'Notes', notes)
+            }
 
             // friends bidding icon
+            const friendsBids = (bids || []).filter((bid) => commonData.friends.includes(bid.bidder))
+
             if (friendsBids.length) {
-                commonFns.renderOthersBiddingIcon(parentEl, 'friend',
-                    `${uniqueFriendNames.length > 1 ? `${uniqueFriendNames.lengthFriends} Friends` : 'Friend'} ${friendsBids[0].bid == bids[0].bid ? 'Winning 🌟' : 'Bidding'}`,
+                const friendsNames = [...new Set(friendsBids.map((bid) => bid.bidder))]
+
+                commonFns.renderOthersBiddingIcon(
+                    parentEl,
+                    'friend',
+                    `${friendsNames.length > 1 ? `${friendsNames.lengthFriends} Friends` : 'Friend'} ${friendsBids[0].bid == bids[0].bid ? 'Winning 🌟' : 'Bidding'}`,
                     `<table>${friendsBids.map((bid) => `<tr><td>${bid.bidder}</td><td class="currency">$${bid.bid}</td></tr>`).join('')}</table>`
                 )
             }
 
-            const spousesBids = (bids || []).filter((bid) => commonData.spouses.includes(bid.bidder))
-            const uniqueSpouseNames = spousesBids.reduce((names, bid) => {
-                if (names.includes(bid.bidder) == false) {
-                    names.push(bid.bidder)
-                }
-
-                return names
-            }, [])
-
             // spouses bidding icon
+            const spousesBids = (bids || []).filter((bid) => commonData.spouses.includes(bid.bidder))
+
             if (spousesBids.length) {
-                commonFns.renderOthersBiddingIcon(parentEl, 'spouse',
-                    `${uniqueSpouseNames.length > 1 ? `${uniqueSpouseNames.length} Spouses` : 'Spouse'} ${spousesBids[0].bid == bids[0].bid ? 'Winning 🌟' : 'Bidding'}`,
+                const spousesNames = [...new Set(spousesBids.map((bid) => bid.bidder))]
+
+                commonFns.renderOthersBiddingIcon(
+                    parentEl,
+                    'spouse',
+                    `${spousesNames.length > 1 ? `${spousesNames.length} Spouses` : 'Spouse'} ${spousesBids[0].bid == bids[0].bid ? 'Winning 🌟' : 'Bidding'}`,
                     `<table>${spousesBids.map((bid) => `<tr><td>${bid.bidder}</td><td class="currency">$${bid.bid}</td></tr>`).join('')}</table>`
                 )
             }
@@ -258,12 +275,6 @@
 
         REQUEST_LISTING_DETAILS: ({ listingIds }) => {
             commonData.listingIds = listingIds
-
-            listingIds.forEach((listingId) => {
-                const parentEl = listingFns.listingIconParent(listingId)
-                commonFns.renderPriceIcon(parentEl, '...', 'Loading...')
-                commonFns.renderBidsIcon(parentEl, '...', 'Loading...')
-            })
 
             commonFns.showProcessing(`Looking up ${listingIds.length} listings`)
 

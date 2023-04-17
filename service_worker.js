@@ -571,16 +571,27 @@ const apiFns = {
                 },
             })
 
+            // parse condition notes from dom
+            const notes = await utilityFns.sendMessageToTab(data.tabIds[0], {
+                action: 'SCRAPE_NOTES_FROM_LISTING',
+                args: {
+                    html: page,
+                    listingId,
+                },
+            })
+
             return {
-                name,
                 listing,
                 bids,
+                name,
+                notes,
             }
         } catch (err) {
             return {
-                name: '',
                 listing: {},
                 bids: [],
+                name: '',
+                notes: '',
             }
         }
     },
@@ -715,11 +726,11 @@ const messageHandlers = {
                     queue.todo = queue.todo.filter((listingId) => listingId != curListingId)
                     queue.processing.push(curListingId)
 
-                    const { listing, bids, name } = await apiFns.scrapeListing(curListingId)
+                    const { listing, bids, name, notes } = await apiFns.scrapeListing(curListingId)
 
                     utilityFns.sendMessageToTab(sender.tab.id, {
                         action: 'PUSH_LISTING_DETAILS',
-                        args: { listingId: curListingId, listing, bids, name }
+                        args: { listingId: curListingId, listing, bids, name, notes }
                     })
 
                     // move id from inProgress to complete

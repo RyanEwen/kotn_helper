@@ -5,9 +5,13 @@
     console.log('KotN Helper - Auctions')
 
     window.listingFns = {
-        listingIconParent: (listingId) => {
+        listingIconParentEl: (listingId) => {
             return document.querySelector(`.listings-grid *[data-id="${listingId}"] .listing-tile-middle`)
         },
+
+        hasSpecialCondition: (listingId) => {
+            return document.querySelector(`.listings-grid *[data-id="${listingId}"] .listing-tile-condition .condition-alert`) != null
+        }
     }
 
     // inject.js postMessage handlers

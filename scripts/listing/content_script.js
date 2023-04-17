@@ -10,9 +10,13 @@
     console.log('KotN Helper - Listing')
 
     window.listingFns = {
-        listingIconParent: (listingId) => {
+        listingIconParentEl: (listingId) => {
             return document.querySelector(`#listing-page .listing-content .body .carousel-inner`)
         },
+
+        hasSpecialCondition: (listingId) => {
+            return false // no need to show the note on this page
+        }
     }
 
     // inject.js postMessage handlers
