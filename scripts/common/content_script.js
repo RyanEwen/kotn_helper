@@ -65,15 +65,15 @@
         },
 
         renderPriceIcon: (parent, iconHtml, bodyHtml) => {
-            return commonFns.createDetailsEl(parent, 'kotn-helper-icon kotn-helper-price-icon', iconHtml, bodyHtml)
+            return commonFns.createDetailsEl(parent, 'kotn-helper-icon kotn-helper-price-icon', iconHtml, `<hr />${bodyHtml}`)
         },
 
         renderBidsIcon: (parent, iconHtml, bodyHtml) => {
-            return commonFns.createDetailsEl(parent, 'kotn-helper-icon kotn-helper-bids-icon', iconHtml, bodyHtml)
+            return commonFns.createDetailsEl(parent, 'kotn-helper-icon kotn-helper-bids-icon', iconHtml, `<hr />${bodyHtml}`)
         },
 
-        renderOthersBiddingIcon: (parent, iconHtml, bodyHtml) => {
-            return commonFns.createDetailsEl(parent, 'kotn-helper-icon kotn-helper-others-bidding', iconHtml, bodyHtml)
+        renderOthersBiddingIcon: (parent, iconClass, iconHtml, bodyHtml) => {
+            return commonFns.createDetailsEl(parent, `kotn-helper-icon kotn-helper-others-bidding ${iconClass}`, iconHtml, `<hr />${bodyHtml}`)
         },
 
         enableComms: async (args) => {
@@ -123,70 +123,6 @@
                 return
             }
 
-            const parentEl = listingFns.listingIconParent(listingId)
-
-            const currentBid = Big(bids[0]?.bid || 0).toFixed(2)
-            const currentBidFee = Big(currentBid).times(0.1).toFixed(2)
-            const currentBidPlusFee = Big(currentBid).plus(currentBidFee).toFixed(2)
-            const currentBidPlusFeeTax = Big(currentBidPlusFee).times(0.13).toFixed(2)
-            const currentBidPlusFeePlusTax = Big(currentBidPlusFee).plus(currentBidPlusFeeTax).toFixed(2)
-
-            const nextBid = Big(currentBid).plus(listing.bid_increment).toFixed(2)
-            const nextBidFee = Big(nextBid).times(0.1).toFixed(2)
-            const nextBidPlusFee = Big(nextBid).plus(nextBidFee).toFixed(2)
-            const nextBidPlusFeeTax = Big(nextBidPlusFee).times(0.13).toFixed(2)
-            const nextBidPlusFeePlusTax = Big(nextBidPlusFee).plus(nextBidPlusFeeTax).toFixed(2)
-
-            commonFns.renderPriceIcon(parentEl,
-                `$${currentBidPlusFeePlusTax}`,
-                `
-                    <hr />
-                    <table>
-                        <tr>
-                            <td>Current Bid:</td>
-                            <td class="currency">$${currentBid}</td>
-                        </tr>
-                        <tr>
-                            <td>Buyer's premium (10%):</td>
-                            <td class="currency">$${currentBidFee}</td>
-                        </tr>
-                        <tr>
-                            <td>HST (13%):</td>
-                            <td class="currency">$${currentBidPlusFeeTax}</td>
-                        </tr>
-                        <tr>
-                            <td>Total:</td>
-                            <td class="currency">$${currentBidPlusFeePlusTax}</td>
-                        </tr>
-                        <tr>
-                            <td colspan=2>&nbsp;</td>
-                        </tr>
-                        <tr>
-                            <td>Next Bid:</td>
-                            <td class="currency">$${nextBid}</td>
-                        </tr>
-                        <tr>
-                            <td>Buyer's premium (10%):</td>
-                            <td class="currency">$${nextBidFee}</td>
-                        </tr>
-                        <tr>
-                            <td>HST (13%):</td>
-                            <td class="currency">$${nextBidPlusFeeTax}</td>
-                        </tr>
-                        <tr>
-                            <td>Total:</td>
-                            <td class="currency">$${nextBidPlusFeePlusTax}</td>
-                        </tr>
-                    </table>
-                `
-            )
-
-            // defined in auctions/listing/watched_listings scripts
-            commonFns.renderBidsIcon(parentEl,
-                `${bids.length} bids`,
-                `<hr /><table>${bids.map((bid) => `<tr><td>${bid.bidder}</td><td class="currency">$${bid.bid}</td></tr>`).join('')}</table>`
-            )
-
             // keep track of processed listings
             if (commonData.listingIdsProcessed.includes(listingId.toString()) == false) {
                 commonData.listingIdsProcessed.push(listingId.toString())
@@ -200,6 +136,71 @@
                 }
             }
 
+            // listingFns are defined in the other content scripts
+            const parentEl = listingFns.listingIconParent(listingId)
+
+            // current bid totals
+            const currentBid = Big(bids[0]?.bid || 0).toFixed(2)
+            const currentBidFee = Big(currentBid).times(0.1).toFixed(2)
+            const currentBidPlusFee = Big(currentBid).plus(currentBidFee).toFixed(2)
+            const currentBidPlusFeeTax = Big(currentBidPlusFee).times(0.13).toFixed(2)
+            const currentBidPlusFeePlusTax = Big(currentBidPlusFee).plus(currentBidPlusFeeTax).toFixed(2)
+
+            // next bid totals
+            const nextBid = Big(currentBid).plus(listing.bid_increment).toFixed(2)
+            const nextBidFee = Big(nextBid).times(0.1).toFixed(2)
+            const nextBidPlusFee = Big(nextBid).plus(nextBidFee).toFixed(2)
+            const nextBidPlusFeeTax = Big(nextBidPlusFee).times(0.13).toFixed(2)
+            const nextBidPlusFeePlusTax = Big(nextBidPlusFee).plus(nextBidPlusFeeTax).toFixed(2)
+
+            // price icon
+            commonFns.renderPriceIcon(parentEl,
+                `$${currentBidPlusFeePlusTax}`,
+                `<table>
+                    <tr>
+                        <td>Current Bid:</td>
+                        <td class="currency">$${currentBid}</td>
+                    </tr>
+                    <tr>
+                        <td>Buyer's premium (10%):</td>
+                        <td class="currency">$${currentBidFee}</td>
+                    </tr>
+                    <tr>
+                        <td>HST (13%):</td>
+                        <td class="currency">$${currentBidPlusFeeTax}</td>
+                    </tr>
+                    <tr>
+                        <td>Total:</td>
+                        <td class="currency">$${currentBidPlusFeePlusTax}</td>
+                    </tr>
+                    <tr>
+                        <td colspan=2>&nbsp;</td>
+                    </tr>
+                    <tr>
+                        <td>Next Bid:</td>
+                        <td class="currency">$${nextBid}</td>
+                    </tr>
+                    <tr>
+                        <td>Buyer's premium (10%):</td>
+                        <td class="currency">$${nextBidFee}</td>
+                    </tr>
+                    <tr>
+                        <td>HST (13%):</td>
+                        <td class="currency">$${nextBidPlusFeeTax}</td>
+                    </tr>
+                    <tr>
+                        <td>Total:</td>
+                        <td class="currency">$${nextBidPlusFeePlusTax}</td>
+                    </tr>
+                </table>`
+            )
+
+            // bids icon
+            commonFns.renderBidsIcon(parentEl,
+                `${bids.length} bids`,
+                `<table>${bids.map((bid) => `<tr><td>${bid.bidder}</td><td class="currency">$${bid.bid}</td></tr>`).join('')}</table>`
+            )
+
             const friendsBids = (bids || []).filter((bid) => commonData.friends.includes(bid.bidder))
             const uniqueFriendNames = friendsBids.reduce((names, bid) => {
                 if (names.includes(bid.bidder) == false) {
@@ -209,14 +210,12 @@
                 return names
             }, [])
 
+            // friends bidding icon
             if (friendsBids.length) {
-                // defined in auctions/listing/watched_listings scripts
-                const el = commonFns.renderOthersBiddingIcon(parentEl,
+                commonFns.renderOthersBiddingIcon(parentEl, 'friend',
                     `${uniqueFriendNames.length > 1 ? `${uniqueFriendNames.lengthFriends} Friends` : 'Friend'} ${friendsBids[0].bid == bids[0].bid ? 'Winning 🌟' : 'Bidding'}`,
-                    `<hr /><table>${friendsBids.map((bid) => `<tr><td>${bid.bidder}</td><td class="currency">$${bid.bid}</td></tr>`).join('')}</table>`
+                    `<table>${friendsBids.map((bid) => `<tr><td>${bid.bidder}</td><td class="currency">$${bid.bid}</td></tr>`).join('')}</table>`
                 )
-
-                el.classList.add('friend')
             }
 
             const spousesBids = (bids || []).filter((bid) => commonData.spouses.includes(bid.bidder))
@@ -228,15 +227,12 @@
                 return names
             }, [])
 
-
+            // spouses bidding icon
             if (spousesBids.length) {
-                // defined in auctions/listing/watched_listings scripts
-                const el = commonFns.renderOthersBiddingIcon(parentEl,
+                commonFns.renderOthersBiddingIcon(parentEl, 'spouse',
                     `${uniqueSpouseNames.length > 1 ? `${uniqueSpouseNames.length} Spouses` : 'Spouse'} ${spousesBids[0].bid == bids[0].bid ? 'Winning 🌟' : 'Bidding'}`,
-                    `<hr /><table>${spousesBids.map((bid) => `<tr><td>${bid.bidder}</td><td class="currency">$${bid.bid}</td></tr>`).join('')}</table>`
+                    `<table>${spousesBids.map((bid) => `<tr><td>${bid.bidder}</td><td class="currency">$${bid.bid}</td></tr>`).join('')}</table>`
                 )
-
-                el.classList.add('spouse')
             }
         },
     }

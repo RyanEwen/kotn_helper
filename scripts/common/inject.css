@@ -88,6 +88,10 @@
     left: 3px;
 }
 
+.kotn-helper-others-bidding + .kotn-helper-others-bidding {
+    bottom: 32px;
+}
+
 .kotn-helper-others-bidding.friend {
     border: 1px solid var(--danger);
     background-color: var(--orange);
