@@ -47,8 +47,8 @@
             setTimeout(() => div.classList.remove('visible'), 3000)
         },
 
-        createDetailsEl: (parent, className, summary, body) => {
-            let el = parent.querySelector(`.${className.split(' ').join('.')}`)
+        createDetailsEl: (parentEl, className, summary, body) => {
+            let el = parentEl.querySelector(`.${className.split(' ').join('.')}`)
 
             if (!el) {
                 el = document.createElement('details')
@@ -56,7 +56,7 @@
                 el.addEventListener('mouseenter', () => { el.open = true })
                 el.addEventListener('mouseleave', () => { el.open = false })
 
-                parent.appendChild(el)
+                parentEl.appendChild(el)
             }
 
             el.innerHTML = `<summary>${summary}</summary>${body}`
@@ -64,16 +64,16 @@
             return el
         },
 
-        renderPriceIcon: (parent, iconHtml, bodyHtml) => {
-            return commonFns.createDetailsEl(parent, 'kotn-helper-icon kotn-helper-price-icon', iconHtml, `<hr />${bodyHtml}`)
+        renderPriceIcon: (parentEl, iconHtml, bodyHtml) => {
+            return commonFns.createDetailsEl(parentEl, 'kotn-helper-icon kotn-helper-price-icon', iconHtml, `<hr />${bodyHtml}`)
         },
 
-        renderBidsIcon: (parent, iconHtml, bodyHtml) => {
-            return commonFns.createDetailsEl(parent, 'kotn-helper-icon kotn-helper-bids-icon', iconHtml, `<hr />${bodyHtml}`)
+        renderBidsIcon: (parentEl, iconHtml, bodyHtml) => {
+            return commonFns.createDetailsEl(parentEl, 'kotn-helper-icon kotn-helper-bids-icon', iconHtml, `<hr />${bodyHtml}`)
         },
 
-        renderOthersBiddingIcon: (parent, iconClass, iconHtml, bodyHtml) => {
-            return commonFns.createDetailsEl(parent, `kotn-helper-icon kotn-helper-others-bidding ${iconClass}`, iconHtml, `<hr />${bodyHtml}`)
+        renderOthersBiddingIcon: (parentEl, iconClass, iconHtml, bodyHtml) => {
+            return commonFns.createDetailsEl(parentEl, `kotn-helper-icon kotn-helper-others-bidding ${iconClass}`, iconHtml, `<hr />${bodyHtml}`)
         },
 
         enableComms: async (args) => {
