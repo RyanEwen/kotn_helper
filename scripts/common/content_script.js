@@ -256,8 +256,6 @@
 
     // listen for extension messages
     chrome.runtime.onMessage.addListener((message, sender, respond) => {
-        // console.log('Common Received', message, sender?.tab?.id)
-
         if (message.action in messageHandlers) {
             messageHandlers[message.action](message.args, sender).then((response) => {
                 if (response) {
@@ -288,13 +286,12 @@
             return
         }
 
+        // handle the message here if there's a function for it, otherwise send it to the service worker
         if (event.data.message.action in postMessageHandlers) {
             postMessageHandlers[event.data.message.action](event.data.message.args)
         } else {
             chrome.runtime.sendMessage(event.data.message)
         }
-
-        // console.log('Common Sending', event.data.message)
     })
 
     // cache friend names
