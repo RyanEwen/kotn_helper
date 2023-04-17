@@ -158,9 +158,10 @@ const listingFns = {
                     queue.processing.push(curListingId)
 
                     // get listing name and bids
-                    const { name, bids } = await apiFns.scrapeListing(curListingId)
+                    const { listing, name, bids } = await apiFns.scrapeListing(curListingId)
 
                     listings[curListingId].id = curListingId
+                    listings[curListingId].listing = listing
                     listings[curListingId].name = name
                     listings[curListingId].bids = bids
 
@@ -537,17 +538,31 @@ const apiFns = {
         try {
             const page = await apiFns.call(`${data.urls.base}/listings/${listingId}`, 'GET', undefined, false)
 
-            const searchText = 'var initialBids = '
+            // scrape listing var
+            const listingSearchText = 'var listing = '
 
-            const line = page
+            const listingLine = page
                 ?.split("\n")
-                ?.find((line) => line.includes(searchText))
+                ?.find((line) => line.includes(listingSearchText))
                 ?.trim()
 
-            const value = line.substr(0, line.length - 1).replace(searchText, '')
+            const listingValue = listingLine.substr(0, listingLine.length - 1).replace(listingSearchText, '')
 
-            const bids = JSON.parse(value)
+            const listing = JSON.parse(listingValue)
 
+            // scrape bids var
+            const bidsSearchText = 'var initialBids = '
+
+            const bidsLine = page
+                ?.split("\n")
+                ?.find((line) => line.includes(bidsSearchText))
+                ?.trim()
+
+            const bidsValue = bidsLine.substr(0, bidsLine.length - 1).replace(bidsSearchText, '')
+
+            const bids = JSON.parse(bidsValue)
+
+            // parse name from dom
             const name = await utilityFns.sendMessageToTab(data.tabIds[0], {
                 action: 'SCRAPE_NAME_FROM_LISTING',
                 args: {
@@ -558,11 +573,13 @@ const apiFns = {
 
             return {
                 name,
+                listing,
                 bids,
             }
         } catch (err) {
             return {
                 name: '',
+                listing: {},
                 bids: [],
             }
         }
@@ -698,11 +715,11 @@ const messageHandlers = {
                     queue.todo = queue.todo.filter((listingId) => listingId != curListingId)
                     queue.processing.push(curListingId)
 
-                    const { bids, name } = await apiFns.scrapeListing(curListingId)
+                    const { listing, bids, name } = await apiFns.scrapeListing(curListingId)
 
                     utilityFns.sendMessageToTab(sender.tab.id, {
                         action: 'PUSH_LISTING_DETAILS',
-                        args: { listingId: curListingId, bids, name }
+                        args: { listingId: curListingId, listing, bids, name }
                     })
 
                     // move id from inProgress to complete
