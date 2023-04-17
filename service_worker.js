@@ -1,12 +1,3 @@
-// TODO
-
-// spouses and friends probably overlap
-// show UI when requesting friends bids
-// show UI when loading watched listings
-// show UI of all watched listings on all pages
-// show names when hovering
-// show all bids somewhere when hovering
-
 console.log('KotN Helper - Service Worker')
 
 import moment from '/lib/moment.js';
