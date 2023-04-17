@@ -20,8 +20,8 @@
 /* Icons */
 .kotn-helper-icon {
     position: absolute;
-    max-width: calc(100% - 4px);
-    max-height: calc(100% - 3px);
+    max-width: calc(100% - 8px);
+    max-height: calc(100% - 6px);
     font-size: 0.9em;
     overflow: auto;
     line-height: 1;
