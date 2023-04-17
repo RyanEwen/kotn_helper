@@ -117,34 +117,74 @@
             return commonFns.scrapeNamesFromListings(args)
         },
 
-        PUSH_LISTING_DETAILS: async ({ listingId, bids, name }) => {
+        PUSH_LISTING_DETAILS: async ({ listingId, listing, bids, name }) => {
             // ignore data that isn't relevant (happens if service worker is still fetching data after tab changes pages)
             if (commonData.listingIds.includes(listingId) == false) {
                 return
             }
 
             const parentEl = listingFns.listingIconParent(listingId)
+
             const currentBid = Big(bids[0]?.bid || 0).toFixed(2)
             const currentBidFee = Big(currentBid).times(0.1).toFixed(2)
             const currentBidPlusFee = Big(currentBid).plus(currentBidFee).toFixed(2)
             const currentBidPlusFeeTax = Big(currentBidPlusFee).times(0.13).toFixed(2)
             const currentBidPlusFeePlusTax = Big(currentBidPlusFee).plus(currentBidPlusFeeTax).toFixed(2)
 
-            commonFns.renderPriceIcon(
-                parentEl,
+            const nextBid = Big(currentBid).plus(listing.bid_increment).toFixed(2)
+            const nextBidFee = Big(nextBid).times(0.1).toFixed(2)
+            const nextBidPlusFee = Big(nextBid).plus(nextBidFee).toFixed(2)
+            const nextBidPlusFeeTax = Big(nextBidPlusFee).times(0.13).toFixed(2)
+            const nextBidPlusFeePlusTax = Big(nextBidPlusFee).plus(nextBidPlusFeeTax).toFixed(2)
+
+            commonFns.renderPriceIcon(parentEl,
                 `$${currentBidPlusFeePlusTax}`,
                 `
-                    Bid: $${currentBid}<br />
-                    Fee: $${currentBidFee}<br />
-                    Tax: $${currentBidPlusFeeTax}
+                    <hr />
+                    <table>
+                        <tr>
+                            <td>Current Bid:</td>
+                            <td class="currency">$${currentBid}</td>
+                        </tr>
+                        <tr>
+                            <td>Buyer's premium (10%):</td>
+                            <td class="currency">$${currentBidFee}</td>
+                        </tr>
+                        <tr>
+                            <td>HST (13%):</td>
+                            <td class="currency">$${currentBidPlusFeeTax}</td>
+                        </tr>
+                        <tr>
+                            <td>Total:</td>
+                            <td class="currency">$${currentBidPlusFeePlusTax}</td>
+                        </tr>
+                        <tr>
+                            <td colspan=2>&nbsp;</td>
+                        </tr>
+                        <tr>
+                            <td>Next Bid:</td>
+                            <td class="currency">$${nextBid}</td>
+                        </tr>
+                        <tr>
+                            <td>Buyer's premium (10%):</td>
+                            <td class="currency">$${nextBidFee}</td>
+                        </tr>
+                        <tr>
+                            <td>HST (13%):</td>
+                            <td class="currency">$${nextBidPlusFeeTax}</td>
+                        </tr>
+                        <tr>
+                            <td>Total:</td>
+                            <td class="currency">$${nextBidPlusFeePlusTax}</td>
+                        </tr>
+                    </table>
                 `
             )
 
             // defined in auctions/listing/watched_listings scripts
-            commonFns.renderBidsIcon(
-                parentEl,
+            commonFns.renderBidsIcon(parentEl,
                 `${bids.length} bids`,
-                `<ul>${bids.map((bid) => `<li>$${bid.bid} • ${bid.bidder}</li>`).join('')}</ul>`
+                `<hr /><table>${bids.map((bid) => `<tr><td>${bid.bidder}</td><td class="currency">$${bid.bid}</td></tr>`).join('')}</table>`
             )
 
             // keep track of processed listings
@@ -161,25 +201,39 @@
             }
 
             const friendsBids = (bids || []).filter((bid) => commonData.friends.includes(bid.bidder))
-            const spousesBids = (bids || []).filter((bid) => commonData.spouses.includes(bid.bidder))
+            const uniqueFriendNames = friendsBids.reduce((names, bid) => {
+                if (names.includes(bid.bidder) == false) {
+                    names.push(bid.bidder)
+                }
+
+                return names
+            }, [])
 
             if (friendsBids.length) {
                 // defined in auctions/listing/watched_listings scripts
-                const el = commonFns.renderOthersBiddingIcon(
-                    parentEl,
-                    `Friend(s) ${friendsBids[0].bid == bids[0].bid ? 'Winning' : 'Bidding'}`,
-                    `<ul>${friendsBids.map((bid) => `<li>$${bid.bid} • ${bid.bidder}</li>`).join('')}</ul>`
+                const el = commonFns.renderOthersBiddingIcon(parentEl,
+                    `${uniqueFriendNames.length > 1 ? `${uniqueFriendNames.lengthFriends} Friends` : 'Friend'} ${friendsBids[0].bid == bids[0].bid ? 'Winning 🌟' : 'Bidding'}`,
+                    `<hr /><table>${friendsBids.map((bid) => `<tr><td>${bid.bidder}</td><td class="currency">$${bid.bid}</td></tr>`).join('')}</table>`
                 )
 
                 el.classList.add('friend')
             }
 
+            const spousesBids = (bids || []).filter((bid) => commonData.spouses.includes(bid.bidder))
+            const uniqueSpouseNames = spousesBids.reduce((names, bid) => {
+                if (names.includes(bid.bidder) == false) {
+                    names.push(bid.bidder)
+                }
+
+                return names
+            }, [])
+
+
             if (spousesBids.length) {
                 // defined in auctions/listing/watched_listings scripts
-                const el = commonFns.renderOthersBiddingIcon(
-                    parentEl,
-                    `Spouse(s) ${spousesBids[0].bid == bids[0].bid ? 'Winning' : 'Bidding'}`,
-                    `<ul>${spousesBids.map((bid) => `<li>$${bid.bid} • ${bid.bidder}</li>`).join('')}</ul>`
+                const el = commonFns.renderOthersBiddingIcon(parentEl,
+                    `${uniqueSpouseNames.length > 1 ? `${uniqueSpouseNames.length} Spouses` : 'Spouse'} ${spousesBids[0].bid == bids[0].bid ? 'Winning 🌟' : 'Bidding'}`,
+                    `<hr /><table>${spousesBids.map((bid) => `<tr><td>${bid.bidder}</td><td class="currency">$${bid.bid}</td></tr>`).join('')}</table>`
                 )
 
                 el.classList.add('spouse')

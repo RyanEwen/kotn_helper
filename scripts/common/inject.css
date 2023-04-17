@@ -25,21 +25,36 @@
     font-size: 0.9em;
     overflow: auto;
     line-height: 1;
-    text-align: center;
     background-color: var(--info);
     border-radius: 5px;
     padding: 5px;
     box-shadow: 1px 1px 4px rgba(0, 0, 0, 0.25);
 }
 
+.kotn-helper-icon[open] {
+    z-index: 999;
+}
+
 .kotn-helper-icon summary {
     display: block;
     text-align: center;
-    /* padding: 6px; */
 }
 
-.kotn-helper-icon[open] summary {
-    margin-bottom: 5px;
+.kotn-helper-icon hr {
+    margin: 5px;
+}
+
+.kotn-helper-icon table {
+    margin: auto;
+    text-align: left;
+}
+
+.kotn-helper-icon table td:not(:first-child) {
+    padding-left: 8px;
+}
+
+.kotn-helper-icon table td.currency {
+    text-align: right;
 }
 
 .kotn-helper-icon ul {
