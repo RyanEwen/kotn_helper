@@ -77,6 +77,16 @@ const utilityFns = {
         }
     },
 
+    sendMessageAllTabs: (message) => {
+        data.tabIds.forEach((tabId) => {
+            try {
+                chrome.tabs.sendMessage(tabId, message)
+            } catch (err) {
+                console.log(`Tried sending message to closed tab ${tabId}`)
+            }
+        })
+    },
+
     createBrowserNotification: (id, title, message, buttons = undefined) => {
         return chrome.notifications.create(id, {
             type: 'basic',
@@ -88,7 +98,7 @@ const utilityFns = {
         })
     },
 
-    createPromise() {
+    createPromise: () => {
         let resolve
         let reject
 
@@ -98,6 +108,45 @@ const utilityFns = {
         })
 
         return { promise, reject, resolve }
+    },
+
+    asyncBatch: async (items, fn, batchSize = 10) => {
+        const promise = utilityFns.createPromise()
+
+        const queue = {
+            todo: items,
+            processing: [],
+            completed: [],
+        }
+
+        function processNextBatch() {
+            if (queue.processing.length <= batchSize) {
+                const itemsToProcess = queue.todo.slice(0, batchSize - queue.processing.length)
+
+                if (itemsToProcess == 0) {
+                    promise.resolve()
+                } else {
+                    itemsToProcess.forEach(async (curItem) => {
+                        // move item from waiting to processing
+                        queue.todo = queue.todo.filter((item) => item != curItem)
+                        queue.processing.push(curItem)
+
+                        // run the async function on the item
+                        await fn(curItem)
+
+                        // move id from inProgress to complete
+                        queue.processing = queue.processing.filter((listingId) => listingId != curItem)
+                        queue.completed.push(curItem)
+
+                        processNextBatch()
+                    })
+                }
+            }
+        }
+
+        processNextBatch()
+
+        return await promise.promise
     },
 }
 
@@ -124,65 +173,20 @@ const listingFns = {
         // add listings to the list to be monitored
         data.watchedListingsCache = { ...data.watchedListingsCache, ...listings }
 
-        const promise = utilityFns.createPromise()
+        Object.entries(listings).forEach(([listingId, listing]) => {
+            const endTime = moment(listing?.end || listing.end_for_display)
+            const twoMinsFromEndTime = moment(endTime).subtract(2, 'minutes')
 
-        console.log(`Fetching data for ${Object.keys(listings).length} listings`)
-
-        // get bids and names (limit to 10 requests at a time)
-        const queue = {
-            todo: Object.keys(listings),
-            processing: [],
-            completed: [],
-        }
-
-        function processNextBatch() {
-            if (queue.todo.length == 0 && queue.processing.length == 0) {
-                promise.resolve()
+            // create a timeout if listing is not yet ending
+            if (moment().isBetween(twoMinsFromEndTime, endTime) == false) {
+                // run notify code 2m5s before endTime
+                listingFns.createListingEndingTimer(listing, moment(twoMinsFromEndTime).subtract(5, 'seconds').diff())
             }
-
-            if (queue.processing.length <= 10) {
-                const idsToProcess = queue.todo.slice(0, 10 - queue.processing.length)
-
-                idsToProcess.forEach(async (curListingId) => {
-                    // move id from waiting to inProgress
-                    queue.todo = queue.todo.filter((listingId) => listingId != curListingId)
-                    queue.processing.push(curListingId)
-
-                    // get listing name and bids
-                    const { listing, name, bids } = await apiFns.scrapeListing(curListingId)
-
-                    listings[curListingId].id = curListingId
-                    listings[curListingId].listing = listing
-                    listings[curListingId].name = name
-                    listings[curListingId].bids = bids
-
-                    const endTime = moment(listings[curListingId].end)
-                    const twoMinsFromEndTime = moment(endTime).subtract(2, 'minutes')
-
-                    // create a timeout if listing is not yet ending
-                    if (moment().isBetween(twoMinsFromEndTime, endTime) == false) {
-                        // run notify code 2m5s before endTime
-                        listingFns.createListingEndingTimer(listings[curListingId], moment(twoMinsFromEndTime).subtract(5, 'seconds').diff())
-                    }
-
-                    // move id from inProgress to complete
-                    queue.processing = queue.processing.filter((listingId) => listingId != curListingId)
-                    queue.completed.push(curListingId)
-
-                    processNextBatch()
-                })
-            }
-        }
-
-        processNextBatch()
-
-        await promise.promise
-
-        console.log(`Done fetching data`)
+        })
     },
 
     unCacheListings: (listings) => {
-        Object.keys(listings).forEach((listingId) => {
+        Object.entries(listings).forEach(([listingId, listing]) => {
             // clear listing ending timers
             listingFns.removeListingEndTimer(data.watchedListingsCache[listingId])
 
@@ -481,50 +485,6 @@ const apiFns = {
 
     refresh: (listingIds) => apiFns.call(`${data.urls.base}/listings/refresh`, 'POST', { ids: listingIds }),
 
-    scrapeWatchedListings: async () => {
-        const searchText = 'var listingData = '
-        const url = new URL(data.urls.watchedListings)
-        url.searchParams.set('per_page', 100)
-
-        async function getPage(pageNo = 1) {
-            url.searchParams.set('page', pageNo)
-
-            const page = await apiFns.call(url.href, 'GET', undefined, false)
-
-            const line = page
-                ?.split("\n")
-                ?.find((line) => line.includes(searchText))
-                ?.trim()
-
-            const value = line.substr(0, line.length - 1).replace(searchText, '')
-
-            const listings = JSON.parse(value)
-
-            const listingNames = await utilityFns.sendMessageToTab(data.tabIds[0], {
-                action: 'SCRAPE_NAMES_FROM_LISTINGS',
-                args: {
-                    html: page,
-                    listingIds: Object.keys(listings),
-                },
-            })
-
-            // add names
-            for (const listingId in listings) {
-                listings[listingId].name = listingNames[listingId]
-            }
-
-            // move onto next page, if this page is full
-            if (Object.keys(listings).length == 100) {
-                return { ...listings, ...await getPage(pageNo + 1) }
-            }
-
-            return listings
-        }
-
-        // start with page 1
-        return await getPage(1)
-    },
-
     scrapeListing: async (listingId) => {
         try {
             const page = await apiFns.call(`${data.urls.base}/listings/${listingId}`, 'GET', undefined, false)
@@ -554,17 +514,8 @@ const apiFns = {
             const bids = JSON.parse(bidsValue)
 
             // parse name from dom
-            const name = await utilityFns.sendMessageToTab(data.tabIds[0], {
-                action: 'SCRAPE_NAME_FROM_LISTING',
-                args: {
-                    html: page,
-                    listingId,
-                },
-            })
-
-            // parse condition notes from dom
-            const notes = await utilityFns.sendMessageToTab(data.tabIds[0], {
-                action: 'SCRAPE_NOTES_FROM_LISTING',
+            const { name, image, notes } = await utilityFns.sendMessageToTab(data.tabIds[0], {
+                action: 'SCRAPE_LISTING',
                 args: {
                     html: page,
                     listingId,
@@ -572,19 +523,59 @@ const apiFns = {
             })
 
             return {
-                listing,
+                ...listing,
+                listingId,
                 bids,
                 name,
+                image,
                 notes,
             }
         } catch (err) {
             return {
-                listing: {},
+                listingId,
                 bids: [],
                 name: '',
+                image: '',
                 notes: '',
             }
         }
+    },
+
+    scrapeWatchedListings: async () => {
+        const searchText = 'var listingData = '
+        const url = new URL(data.urls.watchedListings)
+        url.searchParams.set('per_page', 100)
+
+        async function getPage(pageNo = 1) {
+            url.searchParams.set('page', pageNo)
+
+            const page = await apiFns.call(url.href, 'GET', undefined, false)
+
+            const line = page
+                ?.split("\n")
+                ?.find((line) => line.includes(searchText))
+                ?.trim()
+
+            const value = line.substr(0, line.length - 1).replace(searchText, '')
+
+            const watchedListings = JSON.parse(value)
+
+            const scrapedListings = {}
+
+            await utilityFns.asyncBatch(Object.keys(watchedListings), async (listingId) => {
+                scrapedListings[listingId] = await apiFns.scrapeListing(listingId)
+            })
+
+            // move onto next page, if this page is full
+            if (Object.entries(watchedListings).length == 100) {
+                return { ...scrapedListings, ...await getPage(pageNo + 1) }
+            }
+
+            return scrapedListings
+        }
+
+        // start with page 1
+        return await getPage(1)
     },
 }
 
@@ -630,6 +621,10 @@ const messageHandlers = {
     },
 
     COMMON_OPENED: async (args, sender) => {
+
+    },
+
+    COMMON_SCRIPT_INJECTED: async (args, sender) => {
         // if there was an error due to tab close or something then try again
         if (data.watchedListingsCacheState == 'error') {
             await listingFns.init()
@@ -642,7 +637,7 @@ const messageHandlers = {
                 console.log(`Enabling comms via tab ${sender.tab.id} again due to page change or refresh`)
                 utilityFns.sendMessageToTab(sender.tab.id, { action: 'ENABLE_COMMS' })
             }
-        // new tab opened
+            // new tab opened
         } else {
             // add the tab id to the list
             data.tabIds.push(sender.tab.id)
@@ -655,10 +650,15 @@ const messageHandlers = {
                 utilityFns.sendMessageToTab(sender.tab.id, { action: 'ENABLE_COMMS' })
             }
         }
-    },
 
-    COMMON_SCRIPT_INJECTED: async (args, sender) => {
+        await data.watchedListingsCacheLoadingPromise.promise
 
+        // feature not ready yet
+
+        // utilityFns.sendMessageToTab(sender.tab.id, {
+        //     action: 'PUSH_WATCHED_LISTINGS',
+        //     args: { listings: data.watchedListingsCache },
+        // })
     },
 
     WS_CONNECTED: async (args, sender) => {
@@ -700,6 +700,13 @@ const messageHandlers = {
         }
     },
 
+    // REQUEST_WATCHED_LISTINGS: async (args, sender) => {
+    //     utilityFns.sendMessageToTab(sender.tab.id, {
+    //         action: 'PUSH_WATCHED_LISTINGS',
+    //         args: { listings: data.watchedListingsCache },
+    //     })
+    // },
+
     REQUEST_LISTING_DETAILS: async (args, sender) => {
         // limit to 10 requests at a time
         const queue = {
@@ -717,11 +724,11 @@ const messageHandlers = {
                     queue.todo = queue.todo.filter((listingId) => listingId != curListingId)
                     queue.processing.push(curListingId)
 
-                    const { listing, bids, name, notes } = await apiFns.scrapeListing(curListingId)
+                    const listing = await apiFns.scrapeListing(curListingId)
 
                     utilityFns.sendMessageToTab(sender.tab.id, {
-                        action: 'PUSH_LISTING_DETAILS',
-                        args: { listingId: curListingId, listing, bids, name, notes }
+                        action: 'LISTING_DETAILS',
+                        args: listing,
                     })
 
                     // move id from inProgress to complete
@@ -740,18 +747,28 @@ const messageHandlers = {
         // eg: { "id": 13841801, "listing_id": 974702, "bid": 3, "bidder": "yourguymike", "created_at": "2023-03-21 12:30:59", "listing_end": "2023-03-26 16:00:00" }
 
         // forward to each open tab in case they are displaying the affected listing (they will request details if so)
-        data.tabIds.forEach((tabId) => {
-            utilityFns.sendMessageToTab(tabId, { action: 'BID_PLACED', args })
+        utilityFns.sendMessageAllTabs({
+            action: 'BID_PLACED',
+            args,
         })
 
         // check if watched item is affected and add bid if so
         if (args.listing_id in data.watchedListingsCache && 'bids' in data.watchedListingsCache[args.listing_id]) {
-            data.watchedListingsCache[args.listing_id].bids = [{
-                id: args.id,
-                bid: args.bid,
-                bidder: args.bidder,
-                created_at: args.created_at,
-            }, ...data.watchedListingsCache[args.listing_id].bids]
+            data.watchedListingsCache[args.listing_id].bids = [
+                {
+                    id: args.id,
+                    bid: args.bid,
+                    bidder: args.bidder,
+                    created_at: args.created_at,
+                },
+                ...data.watchedListingsCache[args.listing_id].bids
+            ]
+
+            // forward to each open tab
+            utilityFns.sendMessageAllTabs({
+                action: 'PUSH_WATCHED_LISTINGS',
+                args: { listings: data.watchedListingsCache },
+            })
         }
     },
 
@@ -775,10 +792,22 @@ const messageHandlers = {
                 listingFns.unCacheListings({ [args.listing_id]: listing })
             }
         }
+
+        // forward to each open tab
+        utilityFns.sendMessageAllTabs({
+            action: 'PUSH_WATCHED_LISTINGS',
+            args: { listings: data.watchedListingsCache },
+        })
     },
 
     OUTBID: async (args, sender) => {
         // eg: { "user_id": 17965, "listing_id": 974702, "previous_bid": 2, "current_bid": 3 }
+
+        // forward to each open tab
+        utilityFns.sendMessageAllTabs({
+            action: 'PUSH_WATCHED_LISTINGS',
+            args: { listings: data.watchedListingsCache },
+        })
 
         const notifcationActions = {
             'disabled': async () => {
@@ -871,6 +900,10 @@ const messageHandlers = {
         if (webhooksSetting in webhooksActions) {
             webhooksActions[webhooksSetting]()
         }
+    },
+
+    BID_CLICK: async (args, sender) => {
+        apiFns.bid(args.listingId, args.amount)
     },
 }
 

@@ -1,3 +1,16 @@
+body {
+    --scrollbar-width: calc(100vw - 100%);
+}
+
+/* Generics */
+.kotn-helper-currency {
+    text-align: right;
+}
+
+.kotn-helper-nowrap {
+    white-space: nowrap;
+}
+
 /* Processing Indicator */
 .kotn-helper-processing {
     position: fixed;
@@ -15,6 +28,75 @@
 
 .kotn-helper-processing.visible {
     bottom: 5px;
+}
+
+/* Sidebar */
+
+#app>main {
+    transition: margin-right 0.1s;
+}
+
+.kotn-helper-sidebar-open #app>main {
+    margin-right: 500px;
+}
+
+.kotn-helper-sidebar {
+    position: fixed;
+    top: 20px;
+    bottom: 20px;
+    right: calc(-33% + 30px);
+    width: 33%;
+    font-size: 0.9em;
+    line-height: 1.2;
+    transition: transform 0.1s;
+    display: flex;
+    flex-direction: row;
+    justify-content: start;
+}
+
+.kotn-helper-sidebar-open .kotn-helper-sidebar {
+    transform: translateX(calc(-100% + 30px));
+}
+
+.kotn-helper-sidebar .kotn-helper-sidebar-handle {
+    align-self: center;
+    flex-shrink: 0;
+    width: 30px;
+    border: 1px solid black;
+    border-right: none;
+    background-color: white;
+    border-radius: 10px 0 0 10px;
+    padding: 10px 5px;
+    writing-mode: vertical-lr;
+    cursor: pointer;
+}
+
+.kotn-helper-sidebar .kotn-helper-sidebar-listings {
+    background-color: white;
+    border: 1px solid black;
+    border-right: none;
+    border-radius: 10px 0 0 10px;
+    overflow: auto;
+}
+
+.kotn-helper-sidebar .kotn-helper-sidebar-listings table {
+
+}
+
+.kotn-helper-sidebar .kotn-helper-sidebar-listings table tr.kotn-helper-winning {
+    background: #cfdbc2;
+}
+
+.kotn-helper-sidebar .kotn-helper-sidebar-listings table tr.kotn-helper-outbid {
+    background: #dbc4c2;
+}
+
+.kotn-helper-sidebar .kotn-helper-sidebar-listings table td {
+    padding: 5px;
+}
+
+.kotn-helper-sidebar .kotn-helper-sidebar-listings img {
+    width: 40px;
 }
 
 /* Icons */
@@ -51,10 +133,6 @@
 
 .kotn-helper-icon table td:not(:first-child) {
     padding-left: 8px;
-}
-
-.kotn-helper-icon table td.currency {
-    text-align: right;
 }
 
 .kotn-helper-icon ul {

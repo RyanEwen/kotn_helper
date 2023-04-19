@@ -48,6 +48,7 @@
         {
             "matches": [ "*://*/*" ],
             "resources": [
+                "scripts/common/comms.js",
                 "scripts/common/inject.js",
                 "scripts/common/inject.css",
                 "scripts/auctions/inject.js",

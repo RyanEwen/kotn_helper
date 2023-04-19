@@ -9,6 +9,7 @@
         listingIdsProcessed: [],
         friends: [],
         spouses: [],
+        username: null,
     }
 
     window.commonFns = {
@@ -47,7 +48,7 @@
             setTimeout(() => div.classList.remove('visible'), 3000)
         },
 
-        createDetailsEl: (parentEl, className, summary, body) => {
+        createDetailsEl: (parentEl, className, summaryHtml, bodyHtml) => {
             let el = parentEl.querySelector(`.${className.split(' ').join('.')}`)
 
             if (!el) {
@@ -59,7 +60,38 @@
                 parentEl.appendChild(el)
             }
 
-            el.innerHTML = `<summary>${summary}</summary>${body}`
+            el.innerHTML = `<summary>${summaryHtml}</summary>${bodyHtml}`
+
+            return el
+        },
+
+        renderSidebarEl: (html) => {
+            const className = 'kotn-helper-sidebar'
+            let el = document.body.querySelector(`.${className}`)
+
+            if (!el) {
+                el = document.createElement('div')
+                el.className = className
+
+                const handleEl = document.createElement('span')
+                handleEl.className = 'kotn-helper-sidebar-handle'
+                handleEl.innerHTML = 'Watched Listings'
+
+                const listingsEl = document.createElement('span')
+                listingsEl.className = 'kotn-helper-sidebar-listings'
+                listingsEl.innerHTML = html
+
+                handleEl.addEventListener('click', () => { document.body.classList.toggle('kotn-helper-sidebar-open') })
+
+                el.appendChild(handleEl)
+                el.appendChild(listingsEl)
+
+                document.body.appendChild(el)
+            } else {
+                const listingsEl = el.querySelector('.kotn-helper-sidebar-listings')
+
+                listingsEl.innerHTML = html
+            }
 
             return el
         },
@@ -83,34 +115,39 @@
         enableComms: async (args) => {
             setInterval(() => chrome.runtime.sendMessage({ action: 'KEEPALIVE' }), 15000)
 
-            commonFns.injectScript('scripts/common/inject.js')
+            commonFns.injectScript('scripts/common/comms.js')
 
             console.log('KotN Helper - Comms enabled via this tab')
         },
 
-        scrapeNameFromListing: async ({ html, listingId }) => {
+        scrapeListing: async ({ html, listingId }) => {
             const parser = new DOMParser()
             const dom = parser.parseFromString(html, 'text/html')
 
-            return dom.querySelector('.listing-content .header h1').innerText
+            return {
+                name: dom.querySelector('.listing-content .header h1').innerText,
+                image: dom.querySelector('.listing-content .carousel-inner img').src,
+                notes: dom.querySelector('.listing-content .condition > *:last-child > *:last-child').innerText.replaceAll("\n", '<br />'),
+            }
         },
 
-        scrapeNamesFromListings: async ({ html, listingIds }) => {
+        scrapeListings: async ({ html, listingIds }) => {
             const parser = new DOMParser()
             const dom = parser.parseFromString(html, 'text/html')
 
             return Object.fromEntries(listingIds.map((listingId) => {
-                const listingEl = dom.querySelector(`.listings-grid *[data-id="${listingId}"] .listing-tile-title-link`)
+                const listingEl = dom.querySelector(`.listings-grid *[data-id="${listingId}"]`)
+                const nameEl = listingEl.querySelector(`.listing-tile-title-link`)
+                const imageEl = listingEl.querySelector(`.listing-tile-middle img`)
 
-                return [listingId, listingEl.innerText.trim()]
+                return [
+                    listingId,
+                    {
+                        name: nameEl.innerText.trim(),
+                        image: imageEl.src,
+                    },
+                ]
             }))
-        },
-
-        scrapeNotesFromListing: async ({ html, listingId }) => {
-            const parser = new DOMParser()
-            const dom = parser.parseFromString(html, 'text/html')
-
-            return dom.querySelector('.listing-content .condition > *:last-child > *:last-child').innerText.replaceAll("\n", '<br />')
         },
     }
 
@@ -120,19 +157,15 @@
             return commonFns.enableComms(args)
         },
 
-        SCRAPE_NAME_FROM_LISTING: async (args) => {
-            return commonFns.scrapeNameFromListing(args)
+        SCRAPE_LISTING: async (args) => {
+            return commonFns.scrapeListing(args)
         },
 
-        SCRAPE_NAMES_FROM_LISTINGS: async (args) => {
-            return commonFns.scrapeNamesFromListings(args)
+        SCRAPE_LISTINGS: async (args) => {
+            return commonFns.scrapeListings(args)
         },
 
-        SCRAPE_NOTES_FROM_LISTING: async (args) => {
-            return commonFns.scrapeNotesFromListing(args)
-        },
-
-        PUSH_LISTING_DETAILS: async ({ listingId, listing, bids, name, notes }) => {
+        LISTING_DETAILS: async ({ listingId, bid_increment, bids, notes }) => {
             // ignore data that isn't relevant (happens if service worker is still fetching data after tab changes pages)
             if (commonData.listingIds.includes(listingId) == false) {
                 return
@@ -162,7 +195,7 @@
             const currentBidPlusFeePlusTax = Big(currentBidPlusFee).plus(currentBidPlusFeeTax).toFixed(2)
 
             // next bid totals
-            const nextBid = Big(currentBid).plus(listing.bid_increment).toFixed(2)
+            const nextBid = Big(currentBid).plus(bid_increment).toFixed(2)
             const nextBidFee = Big(nextBid).times(0.1).toFixed(2)
             const nextBidPlusFee = Big(nextBid).plus(nextBidFee).toFixed(2)
             const nextBidPlusFeeTax = Big(nextBidPlusFee).times(0.13).toFixed(2)
@@ -174,38 +207,38 @@
                 `<table>
                     <tr>
                         <td>Current Bid:</td>
-                        <td class="currency">$${currentBid}</td>
+                        <td class="kotn-helper-currency">$${currentBid}</td>
                     </tr>
                     <tr>
                         <td>Buyer's premium (10%):</td>
-                        <td class="currency">$${currentBidFee}</td>
+                        <td class="kotn-helper-currency">$${currentBidFee}</td>
                     </tr>
                     <tr>
                         <td>HST (13%):</td>
-                        <td class="currency">$${currentBidPlusFeeTax}</td>
+                        <td class="kotn-helper-currency">$${currentBidPlusFeeTax}</td>
                     </tr>
                     <tr>
                         <td>Total:</td>
-                        <td class="currency">$${currentBidPlusFeePlusTax}</td>
+                        <td class="kotn-helper-currency">$${currentBidPlusFeePlusTax}</td>
                     </tr>
                     <tr>
                         <td colspan=2>&nbsp;</td>
                     </tr>
                     <tr>
                         <td>Next Bid:</td>
-                        <td class="currency">$${nextBid}</td>
+                        <td class="kotn-helper-currency">$${nextBid}</td>
                     </tr>
                     <tr>
                         <td>Buyer's premium (10%):</td>
-                        <td class="currency">$${nextBidFee}</td>
+                        <td class="kotn-helper-currency">$${nextBidFee}</td>
                     </tr>
                     <tr>
                         <td>HST (13%):</td>
-                        <td class="currency">$${nextBidPlusFeeTax}</td>
+                        <td class="kotn-helper-currency">$${nextBidPlusFeeTax}</td>
                     </tr>
                     <tr>
                         <td>Total:</td>
-                        <td class="currency">$${nextBidPlusFeePlusTax}</td>
+                        <td class="kotn-helper-currency">$${nextBidPlusFeePlusTax}</td>
                     </tr>
                 </table>`
             )
@@ -214,7 +247,7 @@
             commonFns.renderBidsIcon(
                 parentEl,
                 `${bids.length} bids`,
-                `<table>${bids.map((bid) => `<tr><td>${bid.bidder}</td><td class="currency">$${bid.bid}</td></tr>`).join('')}</table>`
+                `<table>${bids.map((bid) => `<tr><td>${bid.bidder}</td><td class="kotn-helper-currency">$${bid.bid}</td></tr>`).join('')}</table>`
             )
 
             // condition notes icon
@@ -234,7 +267,7 @@
                     parentEl,
                     'friend',
                     `${friendsNames.length > 1 ? `${friendsNames.lengthFriends} Friends` : 'Friend'} ${friendsBids[0].bid == bids[0].bid ? 'Winning 🌟' : 'Bidding'}`,
-                    `<table>${friendsBids.map((bid) => `<tr><td>${bid.bidder}</td><td class="currency">$${bid.bid}</td></tr>`).join('')}</table>`
+                    `<table>${friendsBids.map((bid) => `<tr><td>${bid.bidder}</td><td class="kotn-helper-currency">$${bid.bid}</td></tr>`).join('')}</table>`
                 )
             }
 
@@ -248,9 +281,40 @@
                     parentEl,
                     'spouse',
                     `${spousesNames.length > 1 ? `${spousesNames.length} Spouses` : 'Spouse'} ${spousesBids[0].bid == bids[0].bid ? 'Winning 🌟' : 'Bidding'}`,
-                    `<table>${spousesBids.map((bid) => `<tr><td>${bid.bidder}</td><td class="currency">$${bid.bid}</td></tr>`).join('')}</table>`
+                    `<table>${spousesBids.map((bid) => `<tr><td>${bid.bidder}</td><td class="kotn-helper-currency">$${bid.bid}</td></tr>`).join('')}</table>`
                 )
             }
+        },
+
+        PUSH_WATCHED_LISTINGS: async ({ listings }) => {
+            const listingEls = Object.entries(listings).map(([listingId, listing]) => {
+                const hasBid = listing.watch_state == 'bid'
+                const isWinning = commonData.username == listing.bids[0]?.bidder
+                const nextBid = (listing.bids[0]?.bid || 0) + listing.bid_increment
+                const colorClassName = isWinning ? 'kotn-helper-winning' : hasBid ? 'kotn-helper-outbid' : ''
+
+                return `
+                    <tr class="${colorClassName}">
+                        <td>
+                            <img src="${listing.image}" />
+                        </td>
+                        <td>
+                            ${listing.name}
+                        </td>
+                        <td class="kotn-helper-nowrap">
+                            ${listing.bids.length} bids
+                        </td>
+                        <td class="kotn-helper-nowrap kotn-helper-currency">
+                            $${Big(listing.bids[0]?.bid || 0).toFixed(2)}
+                        </td>
+                        <td class="kotn-helper-nowrap">
+                            <a href="javascript:kotnHelperFns.bid(${listingId}, ${nextBid})">Bid $${nextBid}</a>
+                        </td>
+                    </tr>
+                `
+            }).join('')
+
+            commonFns.renderSidebarEl(`<table>${listingEls}</table>`)
         },
     }
 
@@ -294,13 +358,18 @@
         }
     })
 
-    // cache friend names
-    const storedData = await chrome.storage.sync.get(['options.friends.names', 'options.spouses.names'])
+    // cache friend names and username
+    const storedData = await chrome.storage.sync.get(['options.friends.names', 'options.spouses.names', 'options.user.username'])
     commonData.friends = (storedData['options.friends.names'] || '').trim().split("\n")
     commonData.spouses = (storedData['options.spouses.names'] || '').trim().split("\n")
+    commonData.username = storedData['options.user.username']
+
 
     // inject styles
     commonFns.injectStyles('scripts/common/inject.css')
+
+    // inject script
+    commonFns.injectScript('scripts/common/inject.js')
 
     // tell the service worker that this tab is ready
     chrome.runtime.sendMessage({ action: 'COMMON_OPENED' })
