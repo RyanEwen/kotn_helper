@@ -120,28 +120,25 @@ const utilityFns = {
         }
 
         function processNextBatch() {
-            if (queue.processing.length <= batchSize) {
-                const paramsToProcess = queue.todo.slice(0, batchSize - queue.processing.length)
-
-                if (paramsToProcess == 0) {
-                    promise.resolve()
-                } else {
-                    paramsToProcess.forEach(async (curParam) => {
-                        // move item from waiting to processing
-                        queue.todo = queue.todo.filter((param) => param != curParam)
-                        queue.processing.push(curParam)
-
-                        // run the async function on the item
-                        await fn(curParam)
-
-                        // move id from inProgress to complete
-                        queue.processing = queue.processing.filter((listingId) => listingId != curParam)
-                        queue.completed.push(curParam)
-
-                        processNextBatch()
-                    })
-                }
+            if (queue.todo.length == 0 && queue.processing.length == 0) {
+                promise.resolve()
+                return
             }
+
+            queue.todo.slice(0, batchSize - queue.processing.length).forEach(async (curParam) => {
+                // move item from waiting to processing
+                queue.todo = queue.todo.filter((param) => param != curParam)
+                queue.processing.push(curParam)
+
+                // run the async function on the item
+                await fn(curParam)
+
+                // move id from inProgress to complete
+                queue.processing = queue.processing.filter((listingId) => listingId != curParam)
+                queue.completed.push(curParam)
+
+                processNextBatch()
+            })
         }
 
         processNextBatch()
@@ -653,8 +650,6 @@ const messageHandlers = {
                 utilityFns.sendMessageToTab(sender.tab.id, { action: 'ENABLE_COMMS' })
             }
         }
-
-        await data.watchedListingsCacheLoadingPromise.promise
 
         utilityFns.sendMessageToTab(sender.tab.id, {
             action: 'WATCHED_LISTINGS',
