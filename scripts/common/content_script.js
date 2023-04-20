@@ -323,7 +323,10 @@
                                 $${listing.bids[0]?.bid}
                             </td>
                             <td class="kotn-helper-nowrap kotn-helper-currency">
-                                <a href="javascript:kotnHelperFns.bid(${listingId}, ${nextBid})">Bid $${nextBid}</a>
+                                ${!isWinning ? `
+                                    <a href="javascript:kotnHelperFns.bid(${listingId}, ${nextBid})">Bid $${nextBid}</a><br />
+                                    <a href="javascript:kotnHelperFns.unwatch(${listingId})">Unwatch</a><br />
+                                ` : ''}
                             </td>
                         </tr>
                     `

@@ -872,6 +872,10 @@ const messageHandlers = {
     BID_CLICK: async (args, sender) => {
         apiFns.bid(args.listingId, args.amount)
     },
+
+    UNWATCH_CLICK: async (args, sender) => {
+        apiFns.ignore(args.listingId)
+    },
 }
 
 // browser notification handlers

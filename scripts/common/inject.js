@@ -11,6 +11,10 @@
 
             sendMessage({ action: 'BID_CLICK', args: { listingId, amount } })
         },
+
+        unwatch: (listingId) => {
+            sendMessage({ action: 'UNWATCH_CLICK', args: { listingId } })
+        },
     }
 
     sendMessage({ action: 'COMMON_SCRIPT_INJECTED' })
