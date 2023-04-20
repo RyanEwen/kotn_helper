@@ -52,6 +52,8 @@
                 }
             })
         }
+
+        return true // needed to return asynchronously
     })
 
     // inject styles

@@ -177,11 +177,6 @@
 
                 // update progress toast
                 commonFns.showProcessing(`Looked up ${commonData.listingIdsProcessed.length} of ${commonData.listingIds.length} listings`)
-
-                // hide toast if finished
-                if (commonData.listingIdsProcessed.length == commonData.listingIds.length) {
-                    commonFns.hideProcessing()
-                }
             }
 
             // listingFns are defined in the other content scripts
@@ -289,6 +284,20 @@
         WATCHED_LISTINGS: async ({ listings }) => {
             const listingEls = Object.entries(listings)
                 .sort(([listingIdA, listingA], [listingIdB, listingB]) => {
+                    const nameA = listingA.name.toUpperCase()
+                    const nameB = listingB.name.toUpperCase()
+
+                    if (nameA < nameB) {
+                        return -1
+                    }
+
+                    if (nameA > nameB) {
+                        return 1
+                    }
+
+                    return 0
+                })
+                .sort(([listingIdA, listingA], [listingIdB, listingB]) => {
                     if (listingA.sortkey > listingB.sortkey) {
                         return 1
                     }
@@ -346,6 +355,8 @@
                 }
             })
         }
+
+        return true // needed to return asynchronously
     })
 
     // inject.js postMessage handlers
@@ -354,12 +365,14 @@
             chrome.runtime.sendMessage({ action: 'COMMON_SCRIPT_INJECTED' })
         },
 
-        REQUEST_LISTING_DETAILS: ({ listingIds }) => {
+        REQUEST_LISTING_DETAILS: async ({ listingIds }) => {
             commonData.listingIds = listingIds
 
             commonFns.showProcessing(`Looking up ${listingIds.length} listings`)
 
-            chrome.runtime.sendMessage({ action: 'REQUEST_LISTING_DETAILS', args: { listingIds } })
+            await chrome.runtime.sendMessage({ action: 'REQUEST_LISTING_DETAILS', args: { listingIds } })
+
+            commonFns.hideProcessing()
         },
     }
 

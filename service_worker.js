@@ -124,6 +124,7 @@ const utilityFns = {
                 promise.resolve(queue.completed)
             }
 
+            // iterate however many todo items we can fit into processing without exceeding batch size
             queue.todo.slice(0, batchSize - queue.processing.length).forEach(async (curParam) => {
                 // move from waiting to processing
                 queue.todo = queue.todo.filter((param) => param != curParam)
@@ -696,13 +697,15 @@ const messageHandlers = {
     },
 
     REQUEST_LISTING_DETAILS: async (args, sender) => {
-        utilityFns.asyncBatch(args.listingIds, async (listingId) => {
+        return await utilityFns.asyncBatch(args.listingIds, async (listingId) => {
             const listing = await apiFns.scrapeListing(listingId)
 
             utilityFns.sendMessageToTab(sender.tab.id, {
                 action: 'LISTING_DETAILS',
                 args: listing,
             })
+
+            return listing
         })
     },
 
@@ -1011,6 +1014,8 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
             }
         })
     }
+
+    return true // needed to return asynchronously
 })
 
 // listen for browser notification clicks

@@ -21,4 +21,6 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
             }
         })
     }
+
+    return true // needed to return asynchronously
 })
