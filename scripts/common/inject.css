@@ -1,7 +1,7 @@
 /* Variables */
 body {
     --kotn-helper-scrollbar-width: calc(100vw - 100%);
-    --kotn-helper-sidebar-margin: 10px;
+    --kotn-helper-sidebar-margin: 25px;
     --kotn-helper-sidebar-handle-width: 30px;
     --kotn-helper-sidebar-width: 33%;
 }
