@@ -134,7 +134,7 @@ const utilityFns = {
                 await fn(curParam)
 
                 // move id from inProgress to complete
-                queue.processing = queue.processing.filter((listingId) => listingId != curParam)
+                queue.processing = queue.processing.filter((param) => param != curParam)
                 queue.completed.push(curParam)
 
                 processNextBatch()
