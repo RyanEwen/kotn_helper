@@ -1,5 +1,9 @@
+/* Variables */
 body {
-    --scrollbar-width: calc(100vw - 100%);
+    --kotn-helper-scrollbar-width: calc(100vw - 100%);
+    --kotn-helper-sidebar-margin: 10px;
+    --kotn-helper-sidebar-handle-width: 30px;
+    --kotn-helper-sidebar-width: 33%;
 }
 
 /* Generics */
@@ -32,20 +36,20 @@ body {
 
 /* Sidebar */
 
-#app>main {
-    transition: margin-right 0.1s;
+.kotn-helper-sidebar-open #public-header > * {
+    padding-right: var(--kotn-helper-sidebar-width);
 }
 
 .kotn-helper-sidebar-open #app>main {
-    margin-right: 500px;
+    margin-right: var(--kotn-helper-sidebar-width);
 }
 
 .kotn-helper-sidebar {
     position: fixed;
-    top: 20px;
-    bottom: 20px;
-    right: calc(-33% + 30px);
-    width: 33%;
+    top: var(--kotn-helper-sidebar-margin);
+    bottom: var(--kotn-helper-sidebar-margin);
+    right: calc(-1 * var(--kotn-helper-sidebar-width) + var(--kotn-helper-sidebar-handle-width));
+    width: var(--kotn-helper-sidebar-width);
     font-size: 0.9em;
     line-height: 1.2;
     transition: transform 0.1s;
@@ -55,32 +59,30 @@ body {
 }
 
 .kotn-helper-sidebar-open .kotn-helper-sidebar {
-    transform: translateX(calc(-100% + 30px));
+    transform: translateX(calc(-100% + var(--kotn-helper-sidebar-handle-width) - var(--kotn-helper-sidebar-margin)));
 }
 
 .kotn-helper-sidebar .kotn-helper-sidebar-handle {
     align-self: center;
     flex-shrink: 0;
-    width: 30px;
-    border: 1px solid black;
-    border-right: none;
+    width: var(--kotn-helper-sidebar-handle-width);
     background-color: white;
     border-radius: 10px 0 0 10px;
     padding: 10px 5px;
     writing-mode: vertical-lr;
     cursor: pointer;
+    z-index: 2;
+    /* box-shadow: rgba(0, 0, 0, 0.22) 0px 25.6px 57.6px 0px, rgba(0, 0, 0, 0.18) 0px 4.8px 14.4px 0px; */
 }
 
 .kotn-helper-sidebar .kotn-helper-sidebar-listings {
     background-color: white;
-    border: 1px solid black;
-    border-right: none;
-    border-radius: 10px 0 0 10px;
     overflow: auto;
+    box-shadow: rgba(0, 0, 0, 0.22) 0px 25.6px 57.6px 0px, rgba(0, 0, 0, 0.18) 0px 4.8px 14.4px 0px;
 }
 
 .kotn-helper-sidebar .kotn-helper-sidebar-listings table {
-
+    width: 100%;
 }
 
 .kotn-helper-sidebar .kotn-helper-sidebar-listings table tr.kotn-helper-winning {
@@ -97,6 +99,10 @@ body {
 
 .kotn-helper-sidebar .kotn-helper-sidebar-listings img {
     width: 40px;
+}
+
+.kotn-helper-sidebar-listings a {
+    color: #217bc4;
 }
 
 /* Icons */

@@ -286,33 +286,49 @@
             }
         },
 
-        PUSH_WATCHED_LISTINGS: async ({ listings }) => {
-            const listingEls = Object.entries(listings).map(([listingId, listing]) => {
-                const hasBid = listing.watch_state == 'bid'
-                const isWinning = commonData.username == listing.bids[0]?.bidder
-                const nextBid = (listing.bids[0]?.bid || 0) + listing.bid_increment
-                const colorClassName = isWinning ? 'kotn-helper-winning' : hasBid ? 'kotn-helper-outbid' : ''
+        WATCHED_LISTINGS: async ({ listings }) => {
+            const listingEls = Object.entries(listings)
+                .sort(([listingIdA, listingA], [listingIdB, listingB]) => {
+                    if (listingA.sortkey > listingB.sortkey) {
+                        return 1
+                    }
 
-                return `
-                    <tr class="${colorClassName}">
-                        <td>
-                            <img src="${listing.image}" />
-                        </td>
-                        <td>
-                            ${listing.name}
-                        </td>
-                        <td class="kotn-helper-nowrap">
-                            ${listing.bids.length} bids
-                        </td>
-                        <td class="kotn-helper-nowrap kotn-helper-currency">
-                            $${Big(listing.bids[0]?.bid || 0).toFixed(2)}
-                        </td>
-                        <td class="kotn-helper-nowrap">
-                            <a href="javascript:kotnHelperFns.bid(${listingId}, ${nextBid})">Bid $${nextBid}</a>
-                        </td>
-                    </tr>
-                `
-            }).join('')
+                    if (listingA.sortkey < listingB.sortkey) {
+                        return -1
+                    }
+
+                    return 0
+                })
+                .map(([listingId, listing]) => {
+                    const hasBid = listing.watch_state == 'bid'
+                    const isWinning = commonData.username == listing.bids[0]?.bidder
+                    const nextBid = (listing.bids[0]?.bid || 0) + listing.bid_increment
+                    const colorClassName = isWinning ? 'kotn-helper-winning' : hasBid ? 'kotn-helper-outbid' : ''
+
+                    return `
+                        <tr class="${colorClassName}">
+                            <td>
+                                <img src="${listing.image}" />
+                            </td>
+                            <td>
+                                <a href="/listings/${listing.id}">${listing.name}</a>
+                            </td>
+                            <td class="kotn-helper-nowrap">
+                                ${listing.date}
+                            </td>
+                            <td class="kotn-helper-nowrap">
+                                ${listing.bids.length} bids
+                            </td>
+                            <td class="kotn-helper-nowrap kotn-helper-currency">
+                                $${listing.bids[0]?.bid}
+                            </td>
+                            <td class="kotn-helper-nowrap kotn-helper-currency">
+                                <a href="javascript:kotnHelperFns.bid(${listingId}, ${nextBid})">Bid $${nextBid}</a>
+                            </td>
+                        </tr>
+                    `
+                })
+                .join('')
 
             commonFns.renderSidebarEl(`<table>${listingEls}</table>`)
         },

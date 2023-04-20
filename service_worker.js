@@ -110,33 +110,33 @@ const utilityFns = {
         return { promise, reject, resolve }
     },
 
-    asyncBatch: async (items, fn, batchSize = 10) => {
+    asyncBatch: async (params, fn, batchSize = 10) => {
         const promise = utilityFns.createPromise()
 
         const queue = {
-            todo: items,
+            todo: params,
             processing: [],
             completed: [],
         }
 
         function processNextBatch() {
             if (queue.processing.length <= batchSize) {
-                const itemsToProcess = queue.todo.slice(0, batchSize - queue.processing.length)
+                const paramsToProcess = queue.todo.slice(0, batchSize - queue.processing.length)
 
-                if (itemsToProcess == 0) {
+                if (paramsToProcess == 0) {
                     promise.resolve()
                 } else {
-                    itemsToProcess.forEach(async (curItem) => {
+                    paramsToProcess.forEach(async (curParam) => {
                         // move item from waiting to processing
-                        queue.todo = queue.todo.filter((item) => item != curItem)
-                        queue.processing.push(curItem)
+                        queue.todo = queue.todo.filter((param) => param != curParam)
+                        queue.processing.push(curParam)
 
                         // run the async function on the item
-                        await fn(curItem)
+                        await fn(curParam)
 
                         // move id from inProgress to complete
-                        queue.processing = queue.processing.filter((listingId) => listingId != curItem)
-                        queue.completed.push(curItem)
+                        queue.processing = queue.processing.filter((listingId) => listingId != curParam)
+                        queue.completed.push(curParam)
 
                         processNextBatch()
                     })
@@ -158,8 +158,7 @@ const listingFns = {
             data.watchedListingsCacheLoadingPromise = utilityFns.createPromise()
 
             listingFns.unCacheListings(data.watchedListingsCache)
-            const watchedListings = await apiFns.scrapeWatchedListings()
-            await listingFns.cacheListings(watchedListings)
+            await listingFns.cacheListings(await apiFns.scrapeWatchedListings())
 
             data.watchedListingsCacheState = 'loaded'
             data.watchedListingsCacheLoadingPromise.resolve()
@@ -173,9 +172,13 @@ const listingFns = {
         // add listings to the list to be monitored
         data.watchedListingsCache = { ...data.watchedListingsCache, ...listings }
 
+        // process new listings
         Object.entries(listings).forEach(([listingId, listing]) => {
-            const endTime = moment(listing?.end || listing.end_for_display)
+            const endTime = moment(listing.end || listing.end_for_display)
             const twoMinsFromEndTime = moment(endTime).subtract(2, 'minutes')
+
+            listing.sortkey = endTime.format('YYYYMMDDHHmmss')
+            listing.date = endTime.format('ddd h:mm a')
 
             // create a timeout if listing is not yet ending
             if (moment().isBetween(twoMinsFromEndTime, endTime) == false) {
@@ -653,12 +656,10 @@ const messageHandlers = {
 
         await data.watchedListingsCacheLoadingPromise.promise
 
-        // feature not ready yet
-
-        // utilityFns.sendMessageToTab(sender.tab.id, {
-        //     action: 'PUSH_WATCHED_LISTINGS',
-        //     args: { listings: data.watchedListingsCache },
-        // })
+        utilityFns.sendMessageToTab(sender.tab.id, {
+            action: 'WATCHED_LISTINGS',
+            args: { listings: data.watchedListingsCache },
+        })
     },
 
     WS_CONNECTED: async (args, sender) => {
@@ -700,47 +701,15 @@ const messageHandlers = {
         }
     },
 
-    // REQUEST_WATCHED_LISTINGS: async (args, sender) => {
-    //     utilityFns.sendMessageToTab(sender.tab.id, {
-    //         action: 'PUSH_WATCHED_LISTINGS',
-    //         args: { listings: data.watchedListingsCache },
-    //     })
-    // },
-
     REQUEST_LISTING_DETAILS: async (args, sender) => {
-        // limit to 10 requests at a time
-        const queue = {
-            todo: args.listingIds,
-            processing: [],
-            completed: [],
-        }
+        utilityFns.asyncBatch(args.listingIds, async (listingId) => {
+            const listing = await apiFns.scrapeListing(listingId)
 
-        function processNextBatch() {
-            if (queue.processing.length <= 10) {
-                const idsToProcess = queue.todo.slice(0, 10 - queue.processing.length)
-
-                idsToProcess.forEach(async (curListingId) => {
-                    // move id from waiting to inProgress
-                    queue.todo = queue.todo.filter((listingId) => listingId != curListingId)
-                    queue.processing.push(curListingId)
-
-                    const listing = await apiFns.scrapeListing(curListingId)
-
-                    utilityFns.sendMessageToTab(sender.tab.id, {
-                        action: 'LISTING_DETAILS',
-                        args: listing,
-                    })
-
-                    // move id from inProgress to complete
-                    queue.processing = queue.processing.filter((listingId) => listingId != curListingId)
-                    queue.completed.push(curListingId)
-
-                    processNextBatch()
-                })
-            }
-        }
-
-        processNextBatch()
+            utilityFns.sendMessageToTab(sender.tab.id, {
+                action: 'LISTING_DETAILS',
+                args: listing,
+            })
+        })
     },
 
     BID_PLACED: async (args, sender) => {
@@ -766,7 +735,7 @@ const messageHandlers = {
 
             // forward to each open tab
             utilityFns.sendMessageAllTabs({
-                action: 'PUSH_WATCHED_LISTINGS',
+                action: 'WATCHED_LISTINGS',
                 args: { listings: data.watchedListingsCache },
             })
         }
@@ -776,18 +745,16 @@ const messageHandlers = {
         // eg: { "listing_id": 974742, "state": "ignore" }
         // known states: "bid", "watch", "ignore", null
 
-        // try to find listing in cache
-        const listing = data.watchedListingsCache[args.listing_id]
-
         // if we should monitor this listing
         if (['bid', 'watch'].includes(args.state)) {
-            if (listing) {
-                listingFns.cacheListings({ [args.listing_id]: listing })
-            } else {
-                listingFns.cacheListings({ [args.listing_id]: (await apiFns.refresh([args.listing_id]))[args.listing_id] })
-            }
+            const listing = await apiFns.scrapeListing(args.listing_id)
+
+            listingFns.cacheListings({ [args.listing_id]: listing })
         // if we should unmonitor this listing
         } else {
+            // try to find listing in cache
+            const listing = data.watchedListingsCache[args.listing_id]
+
             if (listing) {
                 listingFns.unCacheListings({ [args.listing_id]: listing })
             }
@@ -795,7 +762,7 @@ const messageHandlers = {
 
         // forward to each open tab
         utilityFns.sendMessageAllTabs({
-            action: 'PUSH_WATCHED_LISTINGS',
+            action: 'WATCHED_LISTINGS',
             args: { listings: data.watchedListingsCache },
         })
     },
@@ -805,7 +772,7 @@ const messageHandlers = {
 
         // forward to each open tab
         utilityFns.sendMessageAllTabs({
-            action: 'PUSH_WATCHED_LISTINGS',
+            action: 'WATCHED_LISTINGS',
             args: { listings: data.watchedListingsCache },
         })
 

@@ -5,6 +5,10 @@
 
     window.kotnHelperFns = {
         bid: (listingId, amount) => {
+            if (!confirm(`Are you sure you want to bid $${amount}?`)) {
+                return
+            }
+
             sendMessage({ action: 'BID_CLICK', args: { listingId, amount } })
         },
     }
