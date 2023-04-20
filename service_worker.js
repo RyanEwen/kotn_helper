@@ -121,21 +121,20 @@ const utilityFns = {
 
         function processNextBatch() {
             if (queue.todo.length == 0 && queue.processing.length == 0) {
-                promise.resolve()
-                return
+                promise.resolve(queue.completed)
             }
 
             queue.todo.slice(0, batchSize - queue.processing.length).forEach(async (curParam) => {
-                // move item from waiting to processing
+                // move from waiting to processing
                 queue.todo = queue.todo.filter((param) => param != curParam)
                 queue.processing.push(curParam)
 
-                // run the async function on the item
-                await fn(curParam)
+                // run the async function
+                const response = await fn(curParam)
 
-                // move id from inProgress to complete
+                // move from inProgress to complete and store the response
                 queue.processing = queue.processing.filter((param) => param != curParam)
-                queue.completed.push(curParam)
+                queue.completed[params.indexOf(curParam)] = response
 
                 processNextBatch()
             })
@@ -143,7 +142,7 @@ const utilityFns = {
 
         processNextBatch()
 
-        return await promise.promise
+        return promise.promise
     },
 }
 
