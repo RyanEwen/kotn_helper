@@ -1,9 +1,8 @@
 /* Variables */
 body {
-    --kotn-helper-scrollbar-width: calc(100vw - 100%);
     --kotn-helper-sidebar-margin: 25px;
     --kotn-helper-sidebar-handle-width: 30px;
-    --kotn-helper-sidebar-width: 33%;
+    --kotn-helper-sidebar-width: 40%;
 }
 
 /* Generics */
@@ -36,12 +35,10 @@ body {
 
 /* Sidebar */
 
-.kotn-helper-sidebar-open #public-header > * {
+.kotn-helper-sidebar-open #public-header > *,
+.kotn-helper-sidebar-open #app>main,
+.kotn-helper-sidebar-open #app>.footer {
     padding-right: var(--kotn-helper-sidebar-width);
-}
-
-.kotn-helper-sidebar-open #app>main {
-    margin-right: var(--kotn-helper-sidebar-width);
 }
 
 .kotn-helper-sidebar {
