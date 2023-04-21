@@ -311,7 +311,8 @@
                 .map(([listingId, listing]) => {
                     const hasBid = listing.watch_state == 'bid'
                     const isWinning = commonData.username == listing.bids[0]?.bidder
-                    const nextBid = (listing.bids[0]?.bid || 0) + listing.bid_increment
+                    const currentBid = Big(listing.bids[0]?.bid || 0)
+                    const nextBid = Big(currentBid).plus(listing.bid_increment)
                     const colorClassName = isWinning ? 'kotn-helper-winning' : hasBid ? 'kotn-helper-outbid' : ''
 
                     return `
@@ -329,7 +330,7 @@
                                 ${listing.bids.length} bids
                             </td>
                             <td class="kotn-helper-nowrap kotn-helper-currency">
-                                $${listing.bids[0]?.bid}
+                                $${currentBid}
                             </td>
                             <td class="kotn-helper-nowrap kotn-helper-currency">
                                 ${!isWinning ? `
