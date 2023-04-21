@@ -95,7 +95,9 @@ body {
 }
 
 .kotn-helper-sidebar .kotn-helper-sidebar-listings img {
-    width: 40px;
+    max-width: 40px;
+    max-height: 35px;
+    object-fit: contain;
 }
 
 .kotn-helper-sidebar-listings a {
