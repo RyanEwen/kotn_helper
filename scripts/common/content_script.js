@@ -261,7 +261,7 @@
                 commonFns.renderOthersBiddingIcon(
                     parentEl,
                     'friend',
-                    `${friendsNames.length > 1 ? `${friendsNames.lengthFriends} Friends` : 'Friend'} ${friendsBids[0].bid == bids[0].bid ? 'Winning 🌟' : 'Bidding'}`,
+                    `${friendsNames.length > 1 ? `${friendsNames.length} Friends` : 'Friend'} ${friendsBids[0].bid == bids[0].bid ? 'Winning 🌟' : 'Bidding'}`,
                     `<table>${friendsBids.map((bid) => `<tr><td>${bid.bidder}</td><td class="kotn-helper-currency">$${bid.bid}</td></tr>`).join('')}</table>`
                 )
             }
